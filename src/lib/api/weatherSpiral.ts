@@ -1,0 +1,293 @@
+import { getPlaceNameFromCoordinates } from '@/lib/api/geocoding';
+import { WeatherData, Location } from '@/types';
+import { computeDestinationPoint } from 'geolib';
+
+const SPIRAL_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_SPIRAL_API_KEY;
+const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
+const AIR_POLLUTION_URL = 'http://api.openweathermap.org/data/2.5/air_pollution/forecast';
+const RADIUS_KM = 200; // 200km radius
+const NUM_POINTS = 30; // 30 points
+const DISTANCE_STEP = Math.sqrt((RADIUS_KM ** 2) / NUM_POINTS); // Even spacing
+const ANGLE_STEP = 137.5; // Golden angle for distribution
+const CACHE_KEY = 'spiral_weather_cache';
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface SpiralWeatherPoint {
+  location: Location;
+  name: string;
+  forecast: any; // 5-day weather forecast
+  airPollution: any; // Air pollution forecast
+  avgTemp: number; // Average temperature over 5 days
+  avgAQI: number; // Average Air Quality Index
+  avgWindSpeed: number; // Average wind speed
+  avgCloudCover: number; // Average cloud cover percentage
+  avgHumidity: number; // Average humidity percentage
+}
+
+interface SpiralCache {
+  points: SpiralWeatherPoint[];
+  timestamp: number;
+}
+
+// Generate Archimedean spiral points around a center
+function generateSpiralPoints(center: Location): Location[] {
+    const points: Location[] = [];
+    // console.log('Generating spiral points for center:', center); // Debug
+  
+    for (let i = 0; i < NUM_POINTS; i++) {
+      const r = DISTANCE_STEP * Math.sqrt(i); // Radial distance
+      const theta = (i * ANGLE_STEP * Math.PI) / 180; // Radians
+  
+      if (r > RADIUS_KM) break;
+  
+      const newPoint = computeDestinationPoint(
+        { latitude: center.lat, longitude: center.lng },
+        r * 1000, // Convert km to meters
+        (theta * 180) / Math.PI // Convert radians to degrees
+      );
+  
+      points.push({
+        lat: newPoint.latitude,
+        lng: newPoint.longitude,
+      });
+    }
+  
+    // console.log('Generated points:', points); // Debug
+    return points;
+}
+
+// Fetch 5-day weather forecast (assuming this matches your lib/api/weather.ts style)
+async function getSpiralWeatherForecast(lat: number, lng: number): Promise<any> {
+  if (!SPIRAL_API_KEY) {
+    throw new Error('OpenWeatherMap Spiral API key not found');
+  }
+
+  const response = await fetch(`${FORECAST_URL}?lat=${lat}&lon=${lng}&appid=${SPIRAL_API_KEY}&units=metric`);
+  if (!response.ok) {
+    console.error(`Failed to fetch forecast for lat: ${lat}, lng: ${lng}`);
+    return null;
+  }
+  return response.json();
+}
+
+// Fetch air pollution forecast
+async function getSpiralAirPollutionForecast(lat: number, lng: number): Promise<any> {
+  if (!SPIRAL_API_KEY) {
+    throw new Error('OpenWeatherMap Spiral API key not found');
+  }
+
+  const response = await fetch(`${AIR_POLLUTION_URL}?lat=${lat}&lon=${lng}&appid=${SPIRAL_API_KEY}`);
+  if (!response.ok) {
+    console.error(`Failed to fetch air pollution for lat: ${lat}, lng: ${lng}`);
+    return null;
+  }
+  return response.json();
+}
+
+// Cache handling
+function getCachedSpiralData(): SpiralWeatherPoint[] | null {
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (!cached) return null;
+
+  const { points, timestamp }: SpiralCache = JSON.parse(cached);
+  if (Date.now() - timestamp > CACHE_EXPIRY_MS) {
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+  return points;
+}
+
+function setCachedSpiralData(points: SpiralWeatherPoint[]) {
+  if (points.length > 0) {
+    const cache: SpiralCache = { points, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  }
+}
+
+// Main function to get top 5 locations based on user preference
+export async function getSpiralWeatherLocations(
+  center: Location,
+  preference: string
+): Promise<SpiralWeatherPoint[]> {
+  const cachedData = getCachedSpiralData();
+  if (cachedData) {
+    return sortSpiralPoints(cachedData, preference);
+  }
+
+  const points = generateSpiralPoints(center);
+
+  // Fetch weather and air pollution data for all points
+  const weatherPoints = await Promise.all(
+    points.map(async (point) => {
+      const forecast = await getSpiralWeatherForecast(point.lat, point.lng);
+      const airPollution = await getSpiralAirPollutionForecast(point.lat, point.lng);
+      if (!forecast || !forecast.list || !airPollution || !airPollution.list) return null;
+
+      const name = (await getPlaceNameFromCoordinates(point.lat, point.lng)) || 'Unknown Location';
+      const avgTemp = forecast.list
+        .slice(0, 40) // 5 days (8 intervals/day * 5 = 40)
+        .reduce((sum: number, entry: any) => sum + entry.main.temp, 0) / 40;
+      const avgAQI = airPollution.list
+        .slice(0, 40)
+        .reduce((sum: number, entry: any) => sum + entry.main.aqi, 0) / 40;
+      const avgWindSpeed = forecast.list
+        .slice(0, 40)
+        .reduce((sum: number, entry: any) => sum + entry.wind.speed, 0) / 40;
+      const avgCloudCover = forecast.list
+        .slice(0, 40)
+        .reduce((sum: number, entry: any) => sum + entry.clouds.all, 0) / 40;
+      const avgHumidity = forecast.list
+        .slice(0, 40)
+        .reduce((sum: number, entry: any) => sum + entry.main.humidity, 0) / 40;
+
+      return {
+        location: point,
+        name,
+        forecast,
+        airPollution,
+        avgTemp,
+        avgAQI,
+        avgWindSpeed,
+        avgCloudCover,
+        avgHumidity,
+      };
+    })
+  );
+
+  // Filter out null results and cache
+  const validPoints = weatherPoints.filter((point): point is SpiralWeatherPoint => point !== null);
+  setCachedSpiralData(validPoints);
+
+  return sortSpiralPoints(validPoints, preference);
+}
+
+// Sort points based on preference
+function sortSpiralPoints(points: SpiralWeatherPoint[], preference: string): SpiralWeatherPoint[] {
+  let sortedPoints: SpiralWeatherPoint[] = [];
+
+  const prefLower = preference.toLowerCase();
+
+  if (prefLower.includes('rainy') || prefLower.includes('precipitation')) {
+    sortedPoints = points
+      .sort((a, b) => {
+        const aRain = a.forecast.list.reduce((sum: number, entry: any) => sum + (entry.rain?.['3h'] || 0), 0);
+        const bRain = b.forecast.list.reduce((sum: number, entry: any) => sum + (entry.rain?.['3h'] || 0), 0);
+        return bRain - aRain; // Most rain first
+      })
+      .slice(0, 5);
+  } else if (prefLower.includes('cool') || prefLower.includes('cold') || prefLower.includes('not hot')) {
+    sortedPoints = points
+      .sort((a, b) => a.avgTemp - b.avgTemp) // Coolest first
+      .slice(0, 5);
+  } else if (prefLower.includes('warm') || prefLower.includes('hot')) {
+    sortedPoints = points
+      .sort((a, b) => b.avgTemp - a.avgTemp) // Warmest first
+      .slice(0, 5);
+  } else if (prefLower.includes('air pollution less') || prefLower.includes('clean air') || prefLower.includes('good air')) {
+    sortedPoints = points
+      .sort((a, b) => a.avgAQI - b.avgAQI) // Least polluted first
+      .slice(0, 5);
+  } else if (prefLower.includes('windy')) {
+    sortedPoints = points
+      .sort((a, b) => b.avgWindSpeed - a.avgWindSpeed) // Windiest first
+      .slice(0, 5);
+  } else if (prefLower.includes('sunny')) {
+    sortedPoints = points
+      .sort((a, b) => a.avgCloudCover - b.avgCloudCover) // Least clouds first
+      .slice(0, 5);
+  } else if (prefLower.includes('humid')) {
+    sortedPoints = points
+      .sort((a, b) => b.avgHumidity - a.avgHumidity) // Most humid first
+      .slice(0, 5);
+  } else if (prefLower.includes('calm') || prefLower.includes('low wind')) {
+    sortedPoints = points
+      .sort((a, b) => a.avgWindSpeed - b.avgWindSpeed) // Least windy first
+      .slice(0, 5);
+  } else {
+    sortedPoints = points
+      .sort((a, b) => a.avgTemp - b.avgTemp) // Default to coolest
+      .slice(0, 5);
+  }
+
+  return sortedPoints;
+}
+
+// Format forecast data for WeatherData type
+export function formatSpiralWeatherData(point: SpiralWeatherPoint): WeatherData {
+  const forecastList = point.forecast.list.slice(0, 40); // 5 days
+  const firstEntry = forecastList[0];
+  const airPollutionList = point.airPollution.list.slice(0, 40);
+
+  return {
+    city: {
+      name: point.name,
+      country: point.forecast.city.country || 'Unknown',
+      sunrise: point.forecast.city.sunrise,
+      sunset: point.forecast.city.sunset,
+      timezone: point.forecast.city.timezone,
+    },
+    temperature: {
+      value: firstEntry.main.temp,
+      min: Math.min(...forecastList.map((entry: any) => entry.main.temp_min)),
+      max: Math.max(...forecastList.map((entry: any) => entry.main.temp_max)),
+      feels_like: firstEntry.main.feels_like,
+      unit: 'C',
+    },
+    humidity: {
+      value: firstEntry.main.humidity,
+      unit: '%',
+    },
+    pressure: {
+      value: firstEntry.main.pressure,
+      unit: 'hPa',
+    },
+    wind: {
+      speed: {
+        value: firstEntry.wind.speed,
+        unit: 'm/s',
+        name: 'Light Breeze', // Simplified
+      },
+      direction: {
+        value: firstEntry.wind.deg,
+        code: 'N', // Simplified
+        name: 'North', // Simplified
+      },
+    },
+    clouds: {
+      value: firstEntry.clouds.all,
+      name: firstEntry.weather[0].description,
+    },
+    visibility: {
+      value: firstEntry.visibility / 1000,
+    },
+    airQuality: {
+      index: airPollutionList[0].main.aqi,
+      components: {
+        co: airPollutionList[0].components.co,
+        no2: airPollutionList[0].components.no2,
+        o3: airPollutionList[0].components.o3,
+        pm2_5: airPollutionList[0].components.pm2_5,
+        pm10: airPollutionList[0].components.pm10,
+      },
+    },
+    forecast: forecastList
+      .filter((_: any, index: number) => index % 8 === 0) // One per day
+      .map((day: any) => ({
+        dt: day.dt,
+        temp: {
+          day: day.main.temp,
+          min: day.main.temp_min,
+          max: day.main.temp_max,
+          night: day.main.temp,
+        },
+        weather: {
+          id: day.weather[0].id,
+          main: day.weather[0].main,
+          description: day.weather[0].description,
+          icon: day.weather[0].icon,
+        },
+        pop: day.pop || 0,
+        humidity: day.main.humidity,
+      })),
+  };
+}
