@@ -90,13 +90,13 @@ export default function NewsSection({ articles: initialArticles, loading: initia
     setLoading(true);
     const cacheKey = isLocalNews ? LOCAL_NEWS_CACHE_KEY : COUNTRY_NEWS_CACHE_KEY;
     const cachedArticles = getCachedNews(cacheKey);
-
+  
     if (cachedArticles) {
       setArticles(cachedArticles);
       setLoading(false);
       return;
     }
-
+  
     try {
       const query = isLocalNews
         ? await getPlaceNameFromCoordinates(currentLocation.lat, currentLocation.lng)
