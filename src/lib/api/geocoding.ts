@@ -3,7 +3,7 @@ const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
 export async function getCoordinatesFromPlaceName(placeName: string): Promise<[number, number] | null> {
   if (!API_KEY) return null;
 
-  const url = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(placeName)}&limit=1&appid=${API_KEY}&lang=en`;
+  const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(placeName)}&limit=1&appid=${API_KEY}&lang=en`;
   // console.log('Fetching coordinates for:', url);
   try {
     const response = await fetch(url);
@@ -23,7 +23,7 @@ export async function getCoordinatesFromPlaceName(placeName: string): Promise<[n
 export async function getPlaceNameFromCoordinates(lat: number, lon: number): Promise<string | null> {
   if (!API_KEY) return null;
 
-  const url = `http://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}&lang=en`;
+  const url = `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}&lang=en`;
   // console.log('Fetching place name from:', url);
   try {
     const response = await fetch(url);

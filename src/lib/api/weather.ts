@@ -35,7 +35,7 @@ export async function getWeatherForecast(lat: number, lon: number): Promise<any 
 export async function getCurrentAirPollution(lat: number, lon: number): Promise<any | null> {
   if (!API_KEY) return null;
 
-  const url = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
+  const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
   // console.log('Fetching current air pollution from:', url);
   try {
     const response = await fetch(url);
@@ -51,7 +51,7 @@ export async function getCurrentAirPollution(lat: number, lon: number): Promise<
 export async function getForecastAirPollution(lat: number, lon: number): Promise<any[] | null> {
   if (!API_KEY) return null;
 
-  const url = `http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
+  const url = `https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
   // console.log('Fetching forecast air pollution from:', url);
   try {
     const response = await fetch(url);

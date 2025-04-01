@@ -2,10 +2,10 @@ export const API_ENDPOINTS = {
   WEATHER: {
     CURRENT: 'https://api.openweathermap.org/data/2.5/weather',
     FORECAST: 'https://api.openweathermap.org/data/2.5/forecast',
-    AIR_POLLUTION: 'http://api.openweathermap.org/data/2.5/air_pollution',
-    AIR_POLLUTION_FORECAST: 'http://api.openweathermap.org/data/2.5/air_pollution/forecast',
-    GEOCODING: 'http://api.openweathermap.org/geo/1.0/direct',
-    REVERSE_GEOCODING: 'http://api.openweathermap.org/geo/1.0/reverse',
+    AIR_POLLUTION: 'https://api.openweathermap.org/data/2.5/air_pollution',
+    AIR_POLLUTION_FORECAST: 'https://api.openweathermap.org/data/2.5/air_pollution/forecast',
+    GEOCODING: 'https://api.openweathermap.org/geo/1.0/direct',
+    REVERSE_GEOCODING: 'https://api.openweathermap.org/geo/1.0/reverse',
   },
   NEWS: {
     EVERYTHING: 'https://newsapi.org/v2/everything',

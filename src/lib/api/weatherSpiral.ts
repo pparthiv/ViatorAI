@@ -4,7 +4,7 @@ import { computeDestinationPoint } from 'geolib';
 
 const SPIRAL_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_SPIRAL_API_KEY;
 const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
-const AIR_POLLUTION_URL = 'http://api.openweathermap.org/data/2.5/air_pollution/forecast';
+const AIR_POLLUTION_URL = 'https://api.openweathermap.org/data/2.5/air_pollution/forecast';
 const RADIUS_KM = 200;
 const NUM_POINTS = 30;
 const DISTANCE_STEP = Math.sqrt((RADIUS_KM ** 2) / NUM_POINTS);
