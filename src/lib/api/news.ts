@@ -1,4 +1,3 @@
-// lib/api/news.ts
 export interface Article {
   title: string;
   description: string;
@@ -20,17 +19,19 @@ export async function getLocationNews(location: string, pageSize: number = 10, d
   const cache = localStorage.getItem(cacheKey);
   const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+  // Check if valid cached data exists
   if (cache) {
     const cachedData: CachedNews = JSON.parse(cache);
     const now = Date.now();
     if (now - cachedData.timestamp < ONE_DAY_IN_MS) {
-      // console.log(`News: Using cached data for ${location} (${daysBack} days)`);
+      console.log(`News: Using cached data for ${location} (${daysBack} days)`);
       return cachedData.articles;
     } else {
-      // console.log(`News: Cache expired for ${location} (${daysBack} days)`);
+      console.log(`News: Cache expired for ${location} (${daysBack} days)`);
     }
   }
 
+  // Fetch news via proxy
   const proxyUrl = `/api/news?q=${encodeURIComponent(location)}&pageSize=${pageSize}&daysBack=${daysBack}`;
 
   try {
@@ -41,13 +42,23 @@ export async function getLocationNews(location: string, pageSize: number = 10, d
     const data = await response.json();
 
     if (data.status === 'ok' && data.articles) {
+      const articles: Article[] = data.articles.map((article: any) => ({
+        title: article.title || '',
+        description: article.description || '',
+        url: article.url || '',
+        urlToImage: article.urlToImage || '',
+        publishedAt: article.publishedAt || '',
+        source: {
+          name: article.source?.name || 'Unknown',
+        },
+      }));
       const cachedNews: CachedNews = {
-        articles: data.articles,
+        articles,
         timestamp: Date.now(),
       };
       localStorage.setItem(cacheKey, JSON.stringify(cachedNews));
-      // console.log(`News: Fetched and cached news for ${location} (${daysBack} days)`);
-      return data.articles;
+      console.log(`News: Fetched and cached news for ${location} (${daysBack} days)`);
+      return articles;
     } else {
       console.error('News API error via proxy:', data.message || 'No articles returned');
       return null;
