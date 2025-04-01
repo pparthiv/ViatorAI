@@ -2,12 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Globe, Wind, Cloud, Sun, MapPin, ArrowRight } from 'lucide-react';
 import Header from '@/components/Header';
-import { cn } from '@/lib/utils';
 
-// Dynamically import the main app component
 const MainApp = dynamic(() => import('@/components/MainApp'), {
   loading: () => (
     <div className="h-screen flex items-center justify-center">
@@ -16,7 +14,6 @@ const MainApp = dynamic(() => import('@/components/MainApp'), {
   ),
 });
 
-// Sample queries for the carousel
 const sampleQueries = [
   "Plan a trip to Rome for 5 days.",
   "How’s the weather in San Francisco today?",

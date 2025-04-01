@@ -1,4 +1,3 @@
-// MainApp.tsx
 'use client';
 
 import dynamic from 'next/dynamic';
@@ -133,7 +132,7 @@ export default function MainApp() {
             'unknown',
           priority: poi.priority,
         }));
-        // console.log('MainApp: Setting POIs:', mappedPois); // Debug
+        // console.log('MainApp: Setting POIs:', mappedPois);
         setPois(mappedPois);
         (window as any).latestSpiralWeatherData = response.data.weatherData || [];
       } else {

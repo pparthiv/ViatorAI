@@ -7,9 +7,9 @@ export const APP_CONFIG = {
 export const API_CONFIG = {
   NEWS_DAILY_LIMIT: parseInt(process.env.NEXT_PUBLIC_DAILY_NEWS_LIMIT || '10', 10),
   CACHE_DURATION: {
-    NEWS: 24 * 60 * 60 * 1000, // 24 hours
-    WEATHER: 30 * 60 * 1000,   // 30 minutes
-    LOCATION: 24 * 60 * 60 * 1000, // 24 hours
+    NEWS: 24 * 60 * 60 * 1000,
+    WEATHER: 30 * 60 * 1000,
+    LOCATION: 24 * 60 * 60 * 1000,
   },
 };
 
@@ -27,7 +27,7 @@ export const MAP_CONFIG = {
 };
 
 export const WEATHER_CONFIG = {
-  UPDATE_INTERVAL: 300000, // 5 minutes
+  UPDATE_INTERVAL: 300000,
   AQI_LABELS: ['Good', 'Fair', 'Moderate', 'Poor', 'Very Poor'] as const,
   AQI_COLORS: ['text-green-400', 'text-blue-400', 'text-yellow-400', 'text-orange-400', 'text-red-400'] as const,
 };

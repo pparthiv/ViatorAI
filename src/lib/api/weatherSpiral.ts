@@ -5,23 +5,23 @@ import { computeDestinationPoint } from 'geolib';
 const SPIRAL_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_SPIRAL_API_KEY;
 const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
 const AIR_POLLUTION_URL = 'http://api.openweathermap.org/data/2.5/air_pollution/forecast';
-const RADIUS_KM = 200; // 200km radius
-const NUM_POINTS = 30; // 30 points
-const DISTANCE_STEP = Math.sqrt((RADIUS_KM ** 2) / NUM_POINTS); // Even spacing
-const ANGLE_STEP = 137.5; // Golden angle for distribution
+const RADIUS_KM = 200;
+const NUM_POINTS = 30;
+const DISTANCE_STEP = Math.sqrt((RADIUS_KM ** 2) / NUM_POINTS);
+const ANGLE_STEP = 137.5;
 const CACHE_KEY = 'spiral_weather_cache';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 interface SpiralWeatherPoint {
   location: Location;
   name: string;
-  forecast: any; // 5-day weather forecast
-  airPollution: any; // Air pollution forecast
-  avgTemp: number; // Average temperature over 5 days
-  avgAQI: number; // Average Air Quality Index
-  avgWindSpeed: number; // Average wind speed
-  avgCloudCover: number; // Average cloud cover percentage
-  avgHumidity: number; // Average humidity percentage
+  forecast: any;
+  airPollution: any;
+  avgTemp: number;
+  avgAQI: number;
+  avgWindSpeed: number;
+  avgCloudCover: number;
+  avgHumidity: number;
 }
 
 interface SpiralCache {
@@ -29,21 +29,20 @@ interface SpiralCache {
   timestamp: number;
 }
 
-// Generate Archimedean spiral points around a center
 function generateSpiralPoints(center: Location): Location[] {
     const points: Location[] = [];
-    // console.log('Generating spiral points for center:', center); // Debug
+    // console.log('Generating spiral points for center:', center);
   
     for (let i = 0; i < NUM_POINTS; i++) {
-      const r = DISTANCE_STEP * Math.sqrt(i); // Radial distance
-      const theta = (i * ANGLE_STEP * Math.PI) / 180; // Radians
+      const r = DISTANCE_STEP * Math.sqrt(i);
+      const theta = (i * ANGLE_STEP * Math.PI) / 180;
   
       if (r > RADIUS_KM) break;
   
       const newPoint = computeDestinationPoint(
         { latitude: center.lat, longitude: center.lng },
-        r * 1000, // Convert km to meters
-        (theta * 180) / Math.PI // Convert radians to degrees
+        r * 1000,
+        (theta * 180) / Math.PI
       );
   
       points.push({
@@ -52,11 +51,10 @@ function generateSpiralPoints(center: Location): Location[] {
       });
     }
   
-    // console.log('Generated points:', points); // Debug
+    // console.log('Generated points:', points);
     return points;
 }
 
-// Fetch 5-day weather forecast (assuming this matches your lib/api/weather.ts style)
 async function getSpiralWeatherForecast(lat: number, lng: number): Promise<any> {
   if (!SPIRAL_API_KEY) {
     throw new Error('OpenWeatherMap Spiral API key not found');
@@ -177,35 +175,35 @@ function sortSpiralPoints(points: SpiralWeatherPoint[], preference: string): Spi
       .slice(0, 5);
   } else if (prefLower.includes('cool') || prefLower.includes('cold') || prefLower.includes('not hot')) {
     sortedPoints = points
-      .sort((a, b) => a.avgTemp - b.avgTemp) // Coolest first
+      .sort((a, b) => a.avgTemp - b.avgTemp)
       .slice(0, 5);
   } else if (prefLower.includes('warm') || prefLower.includes('hot')) {
     sortedPoints = points
-      .sort((a, b) => b.avgTemp - a.avgTemp) // Warmest first
+      .sort((a, b) => b.avgTemp - a.avgTemp)
       .slice(0, 5);
   } else if (prefLower.includes('air pollution less') || prefLower.includes('clean air') || prefLower.includes('good air')) {
     sortedPoints = points
-      .sort((a, b) => a.avgAQI - b.avgAQI) // Least polluted first
+      .sort((a, b) => a.avgAQI - b.avgAQI)
       .slice(0, 5);
   } else if (prefLower.includes('windy')) {
     sortedPoints = points
-      .sort((a, b) => b.avgWindSpeed - a.avgWindSpeed) // Windiest first
+      .sort((a, b) => b.avgWindSpeed - a.avgWindSpeed)
       .slice(0, 5);
   } else if (prefLower.includes('sunny')) {
     sortedPoints = points
-      .sort((a, b) => a.avgCloudCover - b.avgCloudCover) // Least clouds first
+      .sort((a, b) => a.avgCloudCover - b.avgCloudCover)
       .slice(0, 5);
   } else if (prefLower.includes('humid')) {
     sortedPoints = points
-      .sort((a, b) => b.avgHumidity - a.avgHumidity) // Most humid first
+      .sort((a, b) => b.avgHumidity - a.avgHumidity)
       .slice(0, 5);
   } else if (prefLower.includes('calm') || prefLower.includes('low wind')) {
     sortedPoints = points
-      .sort((a, b) => a.avgWindSpeed - b.avgWindSpeed) // Least windy first
+      .sort((a, b) => a.avgWindSpeed - b.avgWindSpeed)
       .slice(0, 5);
   } else {
     sortedPoints = points
-      .sort((a, b) => a.avgTemp - b.avgTemp) // Default to coolest
+      .sort((a, b) => a.avgTemp - b.avgTemp)
       .slice(0, 5);
   }
 
@@ -245,12 +243,12 @@ export function formatSpiralWeatherData(point: SpiralWeatherPoint): WeatherData 
       speed: {
         value: firstEntry.wind.speed,
         unit: 'm/s',
-        name: 'Light Breeze', // Simplified
+        name: 'Light Breeze',
       },
       direction: {
         value: firstEntry.wind.deg,
-        code: 'N', // Simplified
-        name: 'North', // Simplified
+        code: 'N',
+        name: 'North',
       },
     },
     clouds: {
@@ -271,7 +269,7 @@ export function formatSpiralWeatherData(point: SpiralWeatherPoint): WeatherData 
       },
     },
     forecast: forecastList
-      .filter((_: any, index: number) => index % 8 === 0) // One per day
+      .filter((_: any, index: number) => index % 8 === 0)
       .map((day: any) => ({
         dt: day.dt,
         temp: {

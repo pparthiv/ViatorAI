@@ -1,4 +1,3 @@
-// ChatWindow.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -166,10 +165,9 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
         sender: 'bot',
         timestamp: new Date(),
       };
-      // Assuming messages are managed by parent (MainApp), this won't persist unless passed up
       messages.push(errorMessage);
     } finally {
-      setIsTyping(false); // Ensure typing state is reset
+      setIsTyping(false);
     }
   };
 

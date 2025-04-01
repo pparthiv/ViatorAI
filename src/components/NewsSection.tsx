@@ -27,7 +27,7 @@ interface NewsSectionProps {
 
 const LOCAL_NEWS_CACHE_KEY = 'local_news_cache';
 const COUNTRY_NEWS_CACHE_KEY = 'country_news_cache';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 interface NewsCache {
   articles: Article[];
@@ -60,7 +60,7 @@ export default function NewsSection({ articles: initialArticles, loading: initia
       if (weatherData && weatherData.sys.country) {
         setCountryCode(weatherData.sys.country);
         const countryDisplayName = new Intl.DisplayNames(['en'], { type: 'region' }).of(weatherData.sys.country);
-        setCountryName(countryDisplayName || weatherData.sys.country); // Fallback to code if conversion fails
+        setCountryName(countryDisplayName || weatherData.sys.country);
       }
     } catch (error) {
       console.error('Error fetching country data:', error);

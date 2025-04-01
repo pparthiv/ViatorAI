@@ -1,4 +1,3 @@
-// MapSection.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -184,7 +183,7 @@ export default function MapSection({
   const [showSpiralCircle, setShowSpiralCircle] = useState(false);
   const initialized = useRef(false);
 
-  // console.log('MapSection: Received POIs:', pois); // Debug
+  // console.log('MapSection: Received POIs:', pois);
 
   useEffect(() => {
     if (initialized.current) return;

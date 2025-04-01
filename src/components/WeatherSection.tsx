@@ -51,7 +51,6 @@ const getAQILabel = (aqi: number) => {
   return { label: labels[aqi - 1] || 'Unknown', color: colors[aqi - 1] || 'text-gray-400' };
 };
 
-// Function to determine background image based on weather and time
 const getBackgroundImage = (weatherMain: string, sunrise: number, sunset: number) => {
   const now = new Date();
   const isDayTime = isAfter(now, fromUnixTime(sunrise)) && isBefore(now, fromUnixTime(sunset));
@@ -69,7 +68,7 @@ const getBackgroundImage = (weatherMain: string, sunrise: number, sunset: number
     case 'thunderstorm':
       return `/clear_${timeOfDay}.png`;
     default:
-      return `/clear_${timeOfDay}.png`; // Fallback image
+      return `/clear_${timeOfDay}.png`;
   }
 };
 

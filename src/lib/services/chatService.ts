@@ -1,4 +1,3 @@
-// chatService.ts
 import { WeatherData } from '@/types';
 import { getCoordinatesFromPlaceName, getPlaceNameFromCoordinates } from '@/lib/api/geocoding';
 import { getWeatherData, getWeatherForecast, getCurrentAirPollution, getForecastAirPollution } from '@/lib/api/weather';
@@ -8,7 +7,6 @@ import { getWindDirectionCode, getWindDirectionName } from '@/lib/utils/wind';
 import { createChatModel, GeminiResponse } from '@/lib/gemini';
 import { getLocationNews, Article } from '@/lib/api/news';
 
-// News request limit configuration
 const DAILY_NEWS_LIMIT = parseInt(process.env.NEXT_PUBLIC_DAILY_NEWS_LIMIT || '10', 10);
 const NEWS_REQUEST_KEY = 'news_requests';
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
