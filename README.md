@@ -100,4 +100,4 @@ For any queries or suggestions, please open an issue in the repository.
 
 ---
 
-Made with ❤️ by [Your Name]
+Made with ❤️ by Parthiv Purkayastha
