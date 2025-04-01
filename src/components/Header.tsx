@@ -34,7 +34,7 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link
-              href="https://github.com"
+              href="https://github.com/pparthiv/ViatorAI"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-indigo-300 transition-colors duration-200 glow-hover"
