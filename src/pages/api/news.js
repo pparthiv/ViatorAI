@@ -1,8 +1,8 @@
 export default async function handler(req, res) {
   const { q, pageSize = 10, daysBack = 7 } = req.query;
-  const apiKey = process.env.NEXT_PUBLIC_NEWS_API_KEY; // Use the env var from .env
+  const apiKey = process.env.NEXT_PUBLIC_NEWS_API_KEY;
 
-  console.log('news.js: Received request:', { q, pageSize, daysBack });
+  // console.log('news.js: Received request:', { q, pageSize, daysBack });
 
   if (!apiKey) {
     console.error('news.js: NEWS_API_KEY not configured');
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       throw new Error(`NewsAPI request failed with status ${response.status}: ${errorText}`);
     }
     const data = await response.json();
-    console.log('news.js: Successfully fetched news:', data.totalResults, 'articles');
+    // console.log('news.js: Successfully fetched news:', data.totalResults, 'articles');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(200).json(data);
   } catch (error) {
