@@ -64,7 +64,7 @@ const getBackgroundImage = (weatherMain: string, sunrise: number, sunset: number
     case 'rain':
       return `/rainy_${timeOfDay}.png`;
     case 'snow':
-      return `/clear_${timeOfDay}.png`;
+      return `/snowy_${timeOfDay}.png`;
     case 'thunderstorm':
       return `/thunderstorm_${timeOfDay}.png`;
     default:
