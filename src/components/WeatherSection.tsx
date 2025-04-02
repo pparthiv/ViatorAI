@@ -66,9 +66,9 @@ const getBackgroundImage = (weatherMain: string, sunrise: number, sunset: number
     case 'snow':
       return `/clear_${timeOfDay}.png`;
     case 'thunderstorm':
-      return `/clear_${timeOfDay}.png`;
+      return `/thunderstorm_${timeOfDay}.png`;
     default:
-      return `/clear_${timeOfDay}.png`;
+      return `/fallback.png`;
   }
 };
 
@@ -163,7 +163,7 @@ export default function WeatherSection({ currentLocation }: WeatherSectionProps)
       <div
         className="neomorphic p-6 rounded-xl h-[600px] flex items-center justify-center"
         style={{
-          backgroundImage: `url(/clear_day.png)`,
+          backgroundImage: `url(/fallback.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           position: 'relative',
