@@ -5,8 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, Polyline 
 import 'leaflet/dist/leaflet.css';
 import { Location, POI, WeatherData } from '@/types';
 import L from 'leaflet';
-import { X, Navigation, Plus, Map, Cloud, Gauge, Wind, Thermometer, Droplets } from 'lucide-react';
+import { X, Plus, Map, Cloud, Gauge, Wind, Thermometer, Droplets, LocateFixed, Sun, CloudSnow, Umbrella, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { format, fromUnixTime, isBefore, isAfter } from 'date-fns';
+import ReactDOMServer from 'react-dom/server';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -16,6 +18,27 @@ L.Icon.Default.mergeOptions({
 });
 
 const worldBounds: L.LatLngBoundsExpression = [[-90, -180], [90, 180]];
+
+const getBackgroundImage = (weatherMain: string, sunrise: number, sunset: number) => {
+  const now = new Date();
+  const isDayTime = isAfter(now, fromUnixTime(sunrise)) && isBefore(now, fromUnixTime(sunset));
+  const timeOfDay = isDayTime ? 'day' : 'night';
+
+  switch (weatherMain.toLowerCase()) {
+    case 'clear':
+      return `/clear_${timeOfDay}.png`;
+    case 'clouds':
+      return `/cloudy_${timeOfDay}.png`;
+    case 'rain':
+      return `/rainy_${timeOfDay}.png`;
+    case 'snow':
+      return `/snowy_${timeOfDay}.png`;
+    case 'thunderstorm':
+      return `/thunderstorm_${timeOfDay}.png`;
+    default:
+      return `/fallback.png`;
+  }
+};
 
 interface MapSectionProps {
   location: Location;
@@ -40,14 +63,27 @@ const currentLocationIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
-const tempMarkerIcon = new L.Icon({
-  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+const tempMarkerIcon = L.divIcon({
+  className: 'temp-marker',
+  html: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.7));">
+      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+      <path d="M12 7v6"/>
+      <path d="M9 10h6"/>
+    </svg>
+  `,
   iconSize: [36, 36],
   iconAnchor: [18, 36],
 });
 
-const searchMarkerIcon = new L.Icon({
-  iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+const searchMarkerIcon = L.divIcon({
+  className: 'search-marker',
+  html: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.7));">
+      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  `,
   iconSize: [36, 36],
   iconAnchor: [18, 36],
 });
@@ -147,18 +183,57 @@ const MapEventsHandler: React.FC<{
   return null;
 };
 
-const SpiralWeatherWidget: React.FC<{ weatherData: WeatherData }> = ({ weatherData }) => (
-  <div className="bg-white p-2 rounded shadow-md w-48">
-    <div className="text-sm font-bold">{weatherData.city.name}</div>
-    <div className="text-xs">
-      <div>{weatherData.temperature.value.toFixed(0)}°C (Feels {weatherData.temperature.feels_like.toFixed(0)}°C)</div>
-      <div>{weatherData.clouds.name}</div>
-      <div>Wind: {weatherData.wind.speed.value.toFixed(1)} m/s</div>
-      <div>Humidity: {weatherData.humidity.value}%</div>
-      <div>AQI: {weatherData.airQuality.index}</div>
+const SpiralWeatherWidget: React.FC<{ weatherData: WeatherData }> = ({ weatherData }) => {
+  const { city, temperature, clouds } = weatherData;
+  const { name: cityName, sunrise: citySunrise, sunset: citySunset } = city;
+  const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' });
+
+  const backgroundImage = getBackgroundImage(weatherData.forecast[0].weather.main || 'Clear', citySunrise, citySunset);
+
+  return (
+    <div
+      className="relative w-48 h-48 rounded-2xl overflow-y-auto shadow-lg bg-opacity-40 custom-scrollbar-2"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundColor: 'black',
+      }}
+    >
+      <div className="absolute inset-0 flex flex-col justify-between p-4 text-white">
+        <div className="flex flex-col items-start">
+          <div className="text-3xl font-bold mr-2 flex justify-between">
+            <div className='flex-start'>{temperature.value.toFixed(0)}°</div>
+            <div className='justify-items-end'>
+              {clouds.name?.toLowerCase() === 'clear' ? (
+                <Sun className="h-8 w-8" />
+              ) : clouds.name?.toLowerCase() === 'rain' ? (
+                <Umbrella className="h-8 w-8" />
+              ) : clouds.name?.toLowerCase() === 'snow' ? (
+                <CloudSnow className="h-8 w-8" />
+              ) : clouds.name?.toLowerCase() === 'thunderstorm' ? (
+                <Zap className="h-8 w-8" />
+              ) : (
+                <Cloud className="h-8 w-8" />
+              )}
+            </div>
+          </div>
+          <div className="text-xl font-semibold">{cityName}</div>
+        </div>
+
+        <div className="space-y-1 pt-5 pb-3">
+          <div className="text-sm">{currentDate}</div>
+          <div className="text-sm flex items-center" style={{ textTransform: 'capitalize'}}>
+            {clouds.name ? clouds.name : 'Clear'}
+          </div>
+          <div className="text-sm">
+            {temperature.min.toFixed(0)}° / {temperature.max.toFixed(0)}°
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function MapSection({
   location,
@@ -182,8 +257,54 @@ export default function MapSection({
   const [localSearchRadius, setLocalSearchRadius] = useState<number>(0);
   const [showSpiralCircle, setShowSpiralCircle] = useState(false);
   const initialized = useRef(false);
+  const [poiBounds, setPoiBounds] = useState<L.LatLngBounds | null>(null);
 
   // console.log('MapSection: Received POIs:', pois);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+  
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newLocation = { lat: latitude, lng: longitude };
+          setUserLocation(newLocation);
+          onCurrentLocationChange?.(newLocation);
+          if (mapRef.current) mapRef.current.setView([newLocation.lat, newLocation.lng], 14);
+        },
+        (error) => {
+          setUserLocation(location);
+          onCurrentLocationChange?.(location);
+          if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      setUserLocation(location);
+      onCurrentLocationChange?.(location);
+      if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
+    }
+  }, [location, onCurrentLocationChange]);
+  
+  // Add new useEffect for bounds
+  useEffect(() => {
+    if (pois.length > 0 && mapRef.current) {
+      const bounds = L.latLngBounds(
+        pois.map((poi) => L.latLng(poi.lat, poi.lng))
+      );
+      setPoiBounds(bounds);
+    } else {
+      setPoiBounds(null);
+    }
+  }, [pois]);
+  
+  useEffect(() => {
+    if (poiBounds && mapRef.current) {
+      mapRef.current.fitBounds(poiBounds, { padding: [50, 50], maxZoom: 12 });
+    }
+  }, [poiBounds]);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -322,29 +443,66 @@ export default function MapSection({
             <Popup>Search Location</Popup>
           </Marker>
         )}
-        {pois.map((poi) => (
-          <React.Fragment key={poi.id}>
-            <Marker
-              position={[poi.lat, poi.lng]}
-              icon={poi.category === 'Weather Suggestion' && poi.priority ? spiralMarkerIcon(poi.priority) : createPOIMarkerIcon(poi.category)}
-            >
-              <Popup>
-                {poi.category === 'Weather Suggestion' ? (
-                  <SpiralWeatherWidget weatherData={(window as any).latestSpiralWeatherData?.find((wd: WeatherData) => wd.city.name === poi.name) || {}} />
-                ) : (
-                  `${poi.name} (${poi.category})`
-                )}
-              </Popup>
-            </Marker>
-            {poi.category === 'Weather Suggestion' && (
-              <Circle
-                center={[poi.lat, poi.lng]}
-                radius={20 * 1000}
-                pathOptions={{ color: '#D3D3D3', fillColor: '#D3D3D3', fillOpacity: 0.05, dashArray: '5, 5' }}
-              />
-            )}
-          </React.Fragment>
-        ))}
+        {pois.map((poi) => {
+          const isWeatherSuggestion = poi.category === 'Weather Suggestion';
+          const weatherData = (window as any).latestSpiralWeatherData?.find((wd: WeatherData) => wd.city.name === poi.name) || {};
+
+          // Render SpiralWeatherWidget to HTML string for Weather Suggestion
+          const widgetHtml = isWeatherSuggestion
+            ? ReactDOMServer.renderToString(
+                <SpiralWeatherWidget weatherData={weatherData} />
+              )
+            : null;
+
+          const markerIcon = isWeatherSuggestion && poi.priority
+            ? spiralMarkerIcon(poi.priority)
+            : createPOIMarkerIcon(poi.category);
+
+          return (
+            <React.Fragment key={poi.id}>
+              <Marker
+                position={[poi.lat, poi.lng]}
+                icon={markerIcon}
+              >
+                <Popup
+                  closeButton={false}
+                  autoClose={false}
+                  closeOnClick={false}
+                  className="weather-popup" // Use a specific class for weather popups
+                  maxWidth={150}
+                  maxHeight={200}
+                >
+                  {isWeatherSuggestion && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          const popupElement = (e.target as HTMLElement).closest('.leaflet-popup');
+                          if (popupElement) {
+                            popupElement.remove(); // Close the popup
+                          }
+                        }}
+                        className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-75 transition-all z-10"
+                      >
+                        <X size={14} />
+                      </button>
+                      <div
+                        dangerouslySetInnerHTML={{ __html: widgetHtml || '' }}
+                      />
+                    </div>
+                  )}
+                  {!isWeatherSuggestion && `${poi.name} (${poi.category})`}
+                </Popup>
+              </Marker>
+              {isWeatherSuggestion && (
+                <Circle
+                  center={[poi.lat, poi.lng]}
+                  radius={20 * 1000}
+                  pathOptions={{ color: '#800080', fillColor: '#800080', fillOpacity: 0.35, dashArray: '5, 5' }}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
         {showSpiralCircle && currentLocation && (
           <Circle
             center={[currentLocation.lat, currentLocation.lng]}
@@ -376,7 +534,7 @@ export default function MapSection({
           className="bg-accent text-accent-foreground hover:bg-accent/80"
         />
         <MapControl
-          icon={<Navigation size={20} />}
+          icon={<LocateFixed size={20} />}
           label="Center on current location"
           onClick={centerOnCurrentLocation}
           className="bg-primary text-primary-foreground hover:bg-primary/80"

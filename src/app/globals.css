@@ -78,6 +78,24 @@
 }
 
 @layer components {
+
+  .weather-popup .leaflet-popup-content-wrapper {
+    background: transparent !important; /* Remove Leaflet's default background */
+    border: none !important; /* Remove Leaflet's default border */
+    box-shadow: none !important; /* Remove Leaflet's default shadow */
+    @apply bg-slate-900/[var(--glass-opacity)] backdrop-blur-[var(--glass-blur)]
+          border border-white/15 rounded-[var(--radius)]
+          shadow-[0_10px_40px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)]
+          hover:shadow-[0_15px_50px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.15)]
+          hover:bg-slate-900/20
+          transition-all duration-300;
+  }
+
+  .weather-popup .leaflet-popup-content {
+    margin: 0 !important; /* Remove default padding/margins */
+    width: 100% !important; /* Ensure it takes the full custom width */
+  }
+
   .leaflet-container {
     width: 100%;
     height: 100%;
@@ -151,6 +169,28 @@
     background: rgba(136, 153, 255, 0.8);
   }
 
+  .custom-scrollbar-2 {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(90, 219, 255, 0.5) transparent;
+  }
+
+  .custom-scrollbar-2::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  .custom-scrollbar-2::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar-2::-webkit-scrollbar-thumb {
+    background: rgba(90, 219, 255, 0.5);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar-2::-webkit-scrollbar-thumb:hover {
+    background: rgba(90, 219, 255, 0.8);
+  }
+
   .glow-text {
     text-shadow: 0 0 8px rgba(147, 197, 253, 0.5);
   }
@@ -161,6 +201,19 @@
 
   .glow-indigo-500 {
     box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  }
+
+  .temp-marker svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  .search-marker svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  .weather-marker {
+    pointer-events: auto; /* Allow interaction */
+    transform: translate(-50%, -100%); /* Adjust positioning if needed */
   }
 }
 
