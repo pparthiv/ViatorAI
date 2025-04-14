@@ -223,7 +223,7 @@ const SpiralWeatherWidget: React.FC<{ weatherData: WeatherData }> = ({ weatherDa
 
         <div className="space-y-1 pt-5 pb-3">
           <div className="text-sm">{currentDate}</div>
-          <div className="text-sm flex items-center" style={{ textTransform: 'capitalize'}}>
+          <div className="text-sm flex items-center" style={{ textTransform: 'capitalize' }}>
             {clouds.name ? clouds.name : 'Clear'}
           </div>
           <div className="text-sm">
@@ -259,12 +259,10 @@ export default function MapSection({
   const initialized = useRef(false);
   const [poiBounds, setPoiBounds] = useState<L.LatLngBounds | null>(null);
 
-  // console.log('MapSection: Received POIs:', pois);
-
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-  
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -287,51 +285,21 @@ export default function MapSection({
       if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
     }
   }, [location, onCurrentLocationChange]);
-  
-  // Add new useEffect for bounds
+
   useEffect(() => {
     if (pois.length > 0 && mapRef.current) {
-      const bounds = L.latLngBounds(
-        pois.map((poi) => L.latLng(poi.lat, poi.lng))
-      );
+      const bounds = L.latLngBounds(pois.map((poi) => L.latLng(poi.lat, poi.lng)));
       setPoiBounds(bounds);
     } else {
       setPoiBounds(null);
     }
   }, [pois]);
-  
+
   useEffect(() => {
     if (poiBounds && mapRef.current) {
       mapRef.current.fitBounds(poiBounds, { padding: [50, 50], maxZoom: 12 });
     }
   }, [poiBounds]);
-
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const newLocation = { lat: latitude, lng: longitude };
-          setUserLocation(newLocation);
-          onCurrentLocationChange?.(newLocation);
-          if (mapRef.current) mapRef.current.setView([newLocation.lat, newLocation.lng], 14);
-        },
-        (error) => {
-          setUserLocation(location);
-          onCurrentLocationChange?.(location);
-          if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-    } else {
-      setUserLocation(location);
-      onCurrentLocationChange?.(location);
-      if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
-    }
-  }, [location, onCurrentLocationChange]);
 
   useEffect(() => {
     if (searchMarker) {
@@ -344,7 +312,7 @@ export default function MapSection({
   }, [searchMarker, searchRadius]);
 
   useEffect(() => {
-    setShowSpiralCircle(pois.some(poi => poi.category === 'Weather Suggestion' && poi.priority));
+    setShowSpiralCircle(pois.some((poi) => poi.category === 'Weather Suggestion' && poi.priority));
   }, [pois]);
 
   const handleThingsToDo = async (query: string) => {
@@ -357,7 +325,7 @@ export default function MapSection({
       if (mapRef.current) {
         mapRef.current.flyTo([data.center.lat, data.center.lng], 12, { duration: 1 });
         setActiveLayer('base');
-        Object.keys(loadedLayers).forEach(key => {
+        Object.keys(loadedLayers).forEach((key) => {
           if (loadedLayers[key]) mapRef.current?.removeLayer(loadedLayers[key]);
         });
       }
@@ -445,52 +413,49 @@ export default function MapSection({
         )}
         {pois.map((poi) => {
           const isWeatherSuggestion = poi.category === 'Weather Suggestion';
-          const weatherData = (window as any).latestSpiralWeatherData?.find((wd: WeatherData) => wd.city.name === poi.name) || {};
+          // Ensure latestSpiralWeatherData is an array or fallback to empty array
+          const latestSpiralWeatherData = (window as any).latestSpiralWeatherData || [];
+          const weatherData = Array.isArray(latestSpiralWeatherData)
+            ? latestSpiralWeatherData.find((wd: WeatherData) => 
+                wd.city.name === poi.name // Match using poi.name only
+              ) || {}
+            : latestSpiralWeatherData;
 
           // Render SpiralWeatherWidget to HTML string for Weather Suggestion
-          const widgetHtml = isWeatherSuggestion
-            ? ReactDOMServer.renderToString(
-                <SpiralWeatherWidget weatherData={weatherData} />
-              )
+          const widgetHtml = isWeatherSuggestion && weatherData
+            ? ReactDOMServer.renderToString(<SpiralWeatherWidget weatherData={weatherData} />)
             : null;
 
           const markerIcon = isWeatherSuggestion && poi.priority
             ? spiralMarkerIcon(poi.priority)
-            : createPOIMarkerIcon(poi.category);
+            : createPOIMarkerIcon(poi.category || 'unknown');
 
           return (
             <React.Fragment key={poi.id}>
-              <Marker
-                position={[poi.lat, poi.lng]}
-                icon={markerIcon}
-              >
+              <Marker position={[poi.lat, poi.lng]} icon={markerIcon}>
                 <Popup
                   closeButton={false}
                   autoClose={false}
                   closeOnClick={false}
-                  className="weather-popup" // Use a specific class for weather popups
+                  className="weather-popup"
                   maxWidth={150}
                   maxHeight={200}
                 >
-                  {isWeatherSuggestion && (
+                  {isWeatherSuggestion && weatherData && (
                     <div className="relative">
                       <button
                         onClick={(e) => {
                           const popupElement = (e.target as HTMLElement).closest('.leaflet-popup');
-                          if (popupElement) {
-                            popupElement.remove(); // Close the popup
-                          }
+                          if (popupElement) popupElement.remove();
                         }}
                         className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-75 transition-all z-10"
                       >
                         <X size={14} />
                       </button>
-                      <div
-                        dangerouslySetInnerHTML={{ __html: widgetHtml || '' }}
-                      />
+                      <div dangerouslySetInnerHTML={{ __html: widgetHtml || '' }} />
                     </div>
                   )}
-                  {!isWeatherSuggestion && `${poi.name} (${poi.category})`}
+                  {!isWeatherSuggestion && `${poi.name || 'Unnamed POI'} (${poi.category || 'Unknown'})`}
                 </Popup>
               </Marker>
               {isWeatherSuggestion && (

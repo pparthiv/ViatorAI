@@ -97,10 +97,16 @@ export interface Task {
 }
 
 export interface POI {
-  id: string;
+  id: string | number;
   lat: number;
   lng: number;
-  name: string;
-  category: string;
-  priority?: number;
+  name?: string; // Optional, as it might come from tags.name or chat response
+  category?: string; // Derived from tags or chat response
+  priority?: number; // For spiral markers
+  tags?: {
+    name?: string;
+    amenity?: string;
+    leisure?: string;
+    tourism?: string;
+  };
 }

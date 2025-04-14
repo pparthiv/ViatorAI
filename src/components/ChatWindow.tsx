@@ -120,18 +120,15 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isTyping) {
-      return;
-    }
+    if (!input.trim() || isTyping) return;
 
-    // console.log('ChatWindow: Sending message:', input, 'with currentLocation:', currentLocation);
     setInput('');
     setIsTyping(true);
 
     try {
       const response = await onSendMessage(input);
       if (response.data && onPOIsUpdated) {
-        const mappedPois: POI[] = response.data.pois.map(poi => ({
+        const mappedPois: POI[] = response.data.pois.map((poi) => ({
           id: poi.id?.toString() || Date.now().toString(),
           lat: poi.lat,
           lng: poi.lng || poi.lon,
@@ -145,36 +142,47 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
         onPOIsUpdated(mappedPois, response.data.center, response.data.radiusKm);
       }
 
-      // Store spiral weather data globally for map access
       if (response.data?.weatherData && Array.isArray(response.data.weatherData)) {
         (window as any).latestSpiralWeatherData = response.data.weatherData;
       }
 
-      const tellMeAboutMatch = input.match(/^Tell me about\s+([A-Za-z\s]+)$/i);
-      const planTripMatch = input.match(/^Plan a trip to\s+([A-Za-z\s]+)$/i);
-      if ((tellMeAboutMatch || planTripMatch) && response.data?.center && onSearchMarkerChange) {
-        const locationName = (tellMeAboutMatch || planTripMatch)![1].trim();
-        // console.log('ChatWindow: Setting search marker for:', locationName);
-        onSearchMarkerChange(response.data.center, response.data.radiusKm);
+      const planTripMatch = input.match(/^Plan a trip to\s+([A-Za-z\s]+)(?:\s+for\s+(\d+)\s+days)?$/i);
+      if (planTripMatch) {
+        if (response.data?.center && onSearchMarkerChange) {
+          onSearchMarkerChange(response.data.center, response.data.radiusKm);
+        }
+      } else {
+        const tellMeAboutMatch = input.match(/^Tell me about\s+([A-Za-z\s]+)$/i);
+        if ((tellMeAboutMatch || planTripMatch) && response.data?.center && onSearchMarkerChange) {
+          onSearchMarkerChange(response.data.center, response.data.radiusKm);
+        }
       }
+
+      messages.push({
+        id: Date.now().toString(),
+        content: response.content,
+        sender: 'bot',
+        timestamp: new Date(),
+        data: response.data,
+      });
+
+      setIsTyping(false);
     } catch (error) {
       console.error('ChatWindow: Error processing message:', error);
-      const errorMessage: Message = {
+      messages.push({
         id: Date.now().toString(),
         content: 'Oops, something went wrong. Please try again!',
         sender: 'bot',
         timestamp: new Date(),
-      };
-      messages.push(errorMessage);
-    } finally {
+      });
       setIsTyping(false);
     }
   };
 
-  const getFollowUpQuestions = (messageContent: string): string[] => {
+    const getFollowUpQuestions = (messageContent: string): string[] => {
     const lowerContent = messageContent.toLowerCase();
-    const locationMatch = messages[messages.length - 1]?.content.match(/Location name: (\w+)/)?.[1] || 'this location';
-    
+    const locationMatch = messages[messages.length - 1]?.content.match(/Location name: (\w+)/i)?.[1] || 'this location';
+
     const possibleQuestions = {
       weather: [
         `What's the 5-day forecast for ${locationMatch}?`,

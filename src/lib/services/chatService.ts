@@ -115,7 +115,7 @@ export async function getChatResponse(
   tempMarkerCoords?: [number, number],
   currentLocationCoords?: [number, number]
 ): Promise<GeminiResponse> {
-  // console.log('Received in getChatResponse:', { message, tempMarkerCoords, currentLocationCoords });
+  console.log('Received in getChatResponse:', { message, tempMarkerCoords, currentLocationCoords });
 
   try {
     const model = createChatModel();
@@ -124,9 +124,9 @@ export async function getChatResponse(
         {
           role: 'user',
           parts: `
-            You're a friendly, chatty Map assistant who loves helping out with a warm, natural tone. You can:
-            1. Plan travel (e.g., "Plan a trip to Paris" or "Set a travel plan for Paris{location=temporary marker} for 7 days").
-            2. Share weather, air quality, and news info (e.g., "Tell me about the location{location=temporary marker}?" or "Tell me about London" or "Tell me about this location").
+            You're a friendly, chatty travel guide who loves helping with a warm, natural tone. You can:
+            1. Plan travel (e.g., "Plan a trip to Paris" or "Plan a trip to Paris for 7 days").
+            2. Share weather, air quality, and news info (e.g., "Tell me about London" or "Tell me about this location").
             3. List nearby activities (e.g., "What are the things I can do in Paris (within 15 km)?" or "Things to do in this location").
             4. Provide news updates (e.g., "What are the updates regarding London?").
             5. Answer specific queries like:
@@ -134,37 +134,41 @@ export async function getChatResponse(
                - "What's the 5-day forecast for this location?"
                - "What should I wear in this location today?"
                - "Any recent news from this location?"
-            6. Suggest nearby locations based on weather preferences (e.g., "What are some colder places I can go to?" or "I want to go to someplace rainy").
+            6. Suggest nearby locations based on weather preferences (e.g., "What are some colder places I can go to?").
 
             When parsing commands:
-            - Respond with friendly greetings.
-            - Use temporary marker coordinates [${
-              tempMarkerCoords ? tempMarkerCoords.join(', ') : 'not provided'
-            }] only when "temporary marker" or "this location" is explicitly mentioned.
-            - Use current location coordinates [${
-              currentLocationCoords ? currentLocationCoords.join(', ') : 'not provided'
-            }] for "this location", "current location", or as the default when no specific place is mentioned.
-            - If a place name is given (e.g., "Paris" in "Things to do in Paris"), fetch its coordinates using the API.
-            - For "Tell me about..." or "Plan a trip to...":
+            - Respond with friendly greetings and a conversational style, avoiding robotic titles like "Description".
+            - Use temporary marker coordinates [${tempMarkerCoords ? tempMarkerCoords.join(', ') : 'not provided'}] only when "temporary marker" or "this location" is mentioned.
+            - Use current location coordinates [${currentLocationCoords ? currentLocationCoords.join(', ') : 'not provided'}] for "this location", "current location", or as default when no place is given.
+            - If a place name is given (e.g., "Paris" in "Plan a trip to Paris"), fetch its coordinates using the API.
+            - For "Tell me about...":
               - Return weather and air quality as structured data for a widget card.
               - Include a natural text response with weather, health tips, clothing advice, local suggestions, and recent news (past week by default).
+            - For "Plan a trip to...":
+              - Start with a warm welcome and a summary that includes the current weather (temperature, condition, feels-like), 5-day forecast, air quality (AQI and main pollutant), a health tip (e.g., wear a mask if AQI is moderate or higher), and clothing advice.
+              - Provide a detailed, day-by-day itinerary for up to 5 days in a friendly, guide-like tone.
+              - Return a JSON object with:
+                - front: { placeName: string, description: string, experiences: string[] }
+                - second: { language: string, phrases: { french: string, english: string }[] }
+                - daily: { journeyTitle: string, dayNumber: number, highlights: { time: string, description: string }[], localExperiences: { cuisine: { items: string[], note: string }, activities: { items: string[], note: string } }, mapLabel1?: string, mapLabel2?: string }[] }
+              - Include a natural text summary of the trip plan for all days.
             - For "What are the updates regarding..." or "Any recent news from...":
-              - Provide a concise summary of news, defaulting to the past week unless a specific time range (e.g., "past 2 days", "last month") is mentioned.
+              - Provide a concise summary of news, defaulting to the past week unless a specific time range is mentioned.
             - For "What are the things I can do in..." or "Things to do in/near...":
               - Parse for radius (default to 5 km if not specified).
               - Suggest up to 10 POIs within the specified radius.
             - For weather preference queries like "What are some [condition] places I can go to?":
-              - Use spiral weather data to suggest top 5 locations within 200km based on conditions (e.g., cold, warm, rainy, windy, sunny, humid, calm, clean air).
+              - Use spiral weather data to suggest top 5 locations within 200km based on conditions.
             - Format naturally with bold text and bullet points.
-            - Use location names instead of coordinates in responses.
+            - Use location names instead of coordinates.
             - Assume current date is ${new Date().toISOString().split('T')[0]}.
             - Limit news requests to ${DAILY_NEWS_LIMIT} per day; if exceeded, say "You've hit the daily news limit of ${DAILY_NEWS_LIMIT} requests—check back tomorrow!"
-            - If a question is outside these capabilities (e.g., historical events beyond news, specific event details), respond: "Sorry, I can’t answer that! I’m built to help with weather, air quality, news updates, nearby activities, and travel planning. What else can I assist you with?"
+            - If a question is outside these capabilities, respond: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, and activities. What else can I assist with?"
           `,
         },
         {
           role: 'model',
-          parts: "Hey there! I'm your go-to buddy for weather, trips, news, and fun stuff to do. Give me a place or a question, and I'll help out!",
+          parts: "Hey there! I’m your travel buddy, ready to guide you with a smile. Give me a destination or question, and let’s get started!",
         },
       ],
     });
@@ -214,7 +218,7 @@ export async function getChatResponse(
 
     if (isUnsupportedQuery && !isTempMarkerQuery && !isCurrentLocationInfo) {
       return {
-        content: "Sorry, I can’t answer that! I’m built to help with weather, air quality, news updates, nearby activities, and travel planning. What else can I assist you with?",
+        content: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, and activities. What else can I assist with?",
         data: null,
       };
     }
@@ -271,7 +275,7 @@ export async function getChatResponse(
           message
         );
 
-        const weatherCards = spiralPoints.map(point => formatSpiralWeatherData(point));
+        const weatherCards = spiralPoints.map((point) => formatSpiralWeatherData(point));
         const spiralPois = spiralPoints.map((point, index) => ({
           id: `spiral-${index}`,
           lat: point.location.lat,
@@ -336,6 +340,13 @@ export async function getChatResponse(
       if (isClothingQuery && weatherData) {
         promptWithCoords += `\nClothing response: ${suggestClothing(weatherData, locationName)}`;
       }
+      if (isTripPlanning && weatherData && currentAirData && forecastWeatherData) {
+        const aqiLabel = currentAirData.list[0].main.aqi === 5 ? 'Very Poor' : currentAirData.list[0].main.aqi === 4 ? 'Poor' : currentAirData.list[0].main.aqi === 3 ? 'Moderate' : 'Good';
+        const healthTip = currentAirData.list[0].main.aqi >= 3 ? 'Consider wearing a mask if you’re sensitive to pollution.' : 'The air’s great—enjoy your time outside!';
+        const clothingAdvice = suggestClothing(weatherData, locationName);
+        const forecastSummary = formatForecast(forecastWeatherData, locationName);
+        promptWithCoords += `\nTrip planning context: Include current weather (temp: ${weatherData.main.temp}°C, condition: ${weatherData.weather[0].description}, feels like: ${weatherData.main.feels_like}°C), 5-day forecast: ${forecastSummary}, air quality (AQI: ${currentAirData.list[0].main.aqi}, ${aqiLabel}, main pollutant: ${Object.keys(currentAirData.list[0].components).reduce((a, b) => currentAirData.list[0].components[a] > currentAirData.list[0].components[b] ? a : b)}), health tip: ${healthTip}, and clothing advice: ${clothingAdvice} in the trip summary.`;
+      }
       if (newsArticles) {
         promptWithCoords += `\nRecent news (past ${newsDaysBack} days):\n${formatNewsSummary(newsArticles, locationName, newsDaysBack)}`;
       } else if (newsLimitExceeded) {
@@ -344,10 +355,28 @@ export async function getChatResponse(
     }
 
     const result = await chat.sendMessage(promptWithCoords);
-    const response = result.response.text();
+    let response = result.response.text().trim();
+
+    let parsedResponse: any = { content: response, data: null };
+    if (isTripPlanning) {
+      try {
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const jsonStr = jsonMatch[0];
+          parsedResponse = JSON.parse(jsonStr);
+          const { front, daily } = parsedResponse;
+          const daySummaries = daily.map((day: any, index: number) => 
+            `<strong>Day</strong> ${day.dayNumber}: ${day.highlights.map((h: any) => h.description).join(', ')}`
+          ).join('\n');
+          response = `Hey! Get ready for an amazing trip to ${front.placeName}!\n${parsedResponse.content || ''}\n${daySummaries}`;
+        }
+      } catch (e) {
+        console.warn('JSON parsing failed, falling back to text:', e);
+      }
+    }
 
     let weatherCardData: WeatherData | undefined;
-    if ((isTellMeAbout || isAirQualityQuery || isClothingQuery) && weatherData && currentAirData && forecastWeatherData) {
+    if ((isTellMeAbout || isTripPlanning || isAirQualityQuery || isClothingQuery) && weatherData && currentAirData && forecastWeatherData) {
       weatherCardData = {
         city: {
           name: locationName,
@@ -363,33 +392,18 @@ export async function getChatResponse(
           feels_like: weatherData.main.feels_like,
           unit: 'C',
         },
-        humidity: {
-          value: weatherData.main.humidity,
-          unit: '%',
-        },
-        pressure: {
-          value: weatherData.main.pressure,
-          unit: 'hPa',
-        },
+        humidity: { value: weatherData.main.humidity, unit: '%' },
+        pressure: { value: weatherData.main.pressure, unit: 'hPa' },
         wind: {
-          speed: {
-            value: weatherData.wind.speed,
-            unit: 'm/s',
-            name: 'Light Breeze',
-          },
+          speed: { value: weatherData.wind.speed, unit: 'm/s', name: 'Light Breeze' },
           direction: {
             value: weatherData.wind.deg,
             code: getWindDirectionCode(weatherData.wind.deg),
             name: getWindDirectionName(weatherData.wind.deg),
           },
         },
-        clouds: {
-          value: weatherData.clouds.all,
-          name: weatherData.weather[0].description,
-        },
-        visibility: {
-          value: weatherData.visibility / 1000,
-        },
+        clouds: { value: weatherData.clouds.all, name: weatherData.weather[0].description },
+        visibility: { value: weatherData.visibility / 1000 },
         airQuality: {
           index: currentAirData.list[0].main.aqi,
           components: {
@@ -402,18 +416,8 @@ export async function getChatResponse(
         },
         forecast: forecastWeatherData.list.slice(0, 5).map((day: any) => ({
           dt: day.dt,
-          temp: {
-            day: day.main.temp,
-            min: day.main.temp_min,
-            max: day.main.temp_max,
-            night: day.main.temp,
-          },
-          weather: {
-            id: day.weather[0].id,
-            main: day.weather[0].main,
-            description: day.weather[0].description,
-            icon: day.weather[0].icon,
-          },
+          temp: { day: day.main.temp, min: day.main.temp_min, max: day.main.temp_max, night: day.main.temp },
+          weather: { id: day.weather[0].id, main: day.weather[0].main, description: day.weather[0].description, icon: day.weather[0].icon },
           pop: day.pop || 0,
           humidity: day.main.humidity,
         })),
@@ -421,7 +425,7 @@ export async function getChatResponse(
     }
 
     return {
-      content: response.trim() || "Hey, I've got nothing yet—give me a place or a nudge!",
+      content: parsedResponse.content || response || "Hey, I've got nothing yet—give me a place or a nudge!",
       data: nearbyPOIs
         ? { pois: nearbyPOIs, center: { lat: finalCoords![1], lng: finalCoords![0] }, radiusKm, weatherData: weatherCardData }
         : null,
