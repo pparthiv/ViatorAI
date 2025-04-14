@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Cloud, Wind, Droplets, Sun, Moon, Gauge, TrendingUp } from 'lucide-react';
+import { Send, Cloud, CloudRain, CloudSnow, Sun, Zap, Wind, Gauge, TrendingUp, Moon, Droplet, Sunrise } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Message, WeatherData, Location, POI } from '@/types';
+import { ArrowRight, Clock } from "lucide-react"
+import { CloudBackground } from './ui/cloud-background';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -30,76 +32,122 @@ function parseMarkdown(text: string): string {
   return html;
 }
 
-const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherData }) => (
-  <Card className="my-2">
-    <CardHeader>
-      <CardTitle>
-        <Cloud className="mr-2 h-5 w-5 text-blue-500" /> {weatherData.city.name}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="flex items-center gap-4">
-        <div>
-          <div className="text-3xl font-bold text-cyan-400">
-            {weatherData.temperature.value.toFixed(0)}°{weatherData.temperature.unit}
+export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherData }) => {
+  // Calculate time until sunset
+  const now = new Date()
+  const sunset = new Date(weatherData.city.sunset * 1000)
+  const timeUntilSunset =
+    sunset > now
+      ? `+${Math.floor((sunset.getTime() - now.getTime()) / (1000 * 60 * 60))}:${String(Math.floor(((sunset.getTime() - now.getTime()) / (1000 * 60)) % 60)).padStart(2, "0")}`
+      : ""
+
+  // Get AQI text
+  const getAqiText = (index: number) => {
+    if (index <= 2) return "Good"
+    if (index === 3) return "Moderate"
+    if (index === 4) return "Poor"
+    return "Very Poor"
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="absolute inset-0 rounded-xl">
+          <CloudBackground />
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800">{weatherData.city.name}</h1>
+            <div className="flex items-baseline">
+              <span className="text-6xl font-bold text-blue-500">
+                {weatherData.temperature.value.toFixed(0)}°{weatherData.temperature.unit}
+              </span>
+            </div>
+            <div className="text-slate-600 text-lg">Feels like {weatherData.temperature.feels_like.toFixed(1)}°</div>
           </div>
-          <div className="text-sm text-blue-600">Feels like {weatherData.temperature.feels_like.toFixed(2)}°</div>
+
+          <div className="flex flex-col items-center">
+            <div className="w-28 h-28">
+                {weatherData.forecast[0].weather.main === 'Clear' ? (
+                  <Sun className="w-28 h-28 text-yellow-500" />
+                ) : weatherData.forecast[0].weather.main === 'Rain' ? (
+                  <CloudRain className="w-28 h-28 text-blue-500" />
+                ) : weatherData.forecast[0].weather.main === 'Snow' ? (
+                  <CloudSnow className="w-28 h-28 text-white" />
+                ) : weatherData.forecast[0].weather.main === 'Thunderstorm' ? (
+                  <Zap className="w-28 h-28 text-yellow-600" />
+                ) : (
+                  <Cloud className="w-28 h-28 text-gray-400" />
+                )}
+            </div>
+            <span className="text-slate-700 text-lg" style={{ textTransform: 'capitalize' }}>{weatherData.clouds.name}</span>
+          </div>
         </div>
-        <motion.div
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          {weatherData.clouds.name.toLowerCase().includes('clear') ? (
-            <Sun className="h-8 w-8 text-yellow-500" />
-          ) : weatherData.clouds.name.toLowerCase().includes('rain') ? (
-            <Cloud className="h-8 w-8 text-blue-500" />
-          ) : (
-            <Cloud className="h-8 w-8 text-gray-400" />
-          )}
-        </motion.div>
-        <div className="text-xs text-gray-600 capitalize">{weatherData.clouds.name}</div>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          <Wind className="h-4 w-4 text-teal-500" />
-          <span className="text-sm text-gray-800">{weatherData.wind.speed.value.toFixed(2)} m/s, {weatherData.wind.direction.code}</span>
+
+        <div className="border-t border-b border-gray-200 py-4 my-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Wind className="h-5 w-5 text-gray-500" />
+              <span className="text-slate-700">
+                {weatherData.wind.speed.value.toFixed(1)} m/s, {weatherData.wind.direction.code}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Droplet className="h-5 w-5 text-blue-500" />
+              <span className="text-slate-700">{weatherData.humidity.value}%</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Sun className="h-6 w-6 text-yellow-500" />
+              <span className="text-slate-700">
+                {new Date(weatherData.city.sunrise * 1000).toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Moon className="h-5 w-5 text-purple-500" />
+              <span className="text-slate-700">{timeUntilSunset} Hours</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Droplets className="h-4 w-4 text-blue-400" />
-          <span className="text-sm text-gray-800">{weatherData.humidity.value}%</span>
+
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Gauge className="h-5 w-5 text-red-500" />
+            <span className="text-slate-700">
+              AQI {weatherData.airQuality.index} ({getAqiText(weatherData.airQuality.index)})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Wind className="h-5 w-5 text-gray-600" />
+            <span className="text-slate-700">{weatherData.airQuality.components.pm2_5.toFixed(1)} µg/m³</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Wind className="h-5 w-5 text-purple-500" />
+            <span className="text-slate-700">{weatherData.airQuality.components.o3.toFixed(1)} µg/m³</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-green-500" />
+            <span className="text-slate-700">
+              AQI {weatherData.airQuality.index} to{" "}
+              {weatherData.forecast.length > 1 ? (weatherData.forecast[1].humidity > 50 ? 4 : 3) : "N/A"}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Sun className="h-4 w-4 text-yellow-400" />
-          <span className="text-sm text-gray-800">{new Date(weatherData.city.sunrise * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Moon className="h-4 w-4 text-indigo-500" />
-          <span className="text-sm text-gray-800">{new Date(weatherData.city.sunset * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          <Gauge className="h-4 w-4 text-red-500" />
-          <span className="text-sm text-gray-800">
-            AQI {weatherData.airQuality.index} ({weatherData.airQuality.index === 5 ? 'Very Poor' : weatherData.airQuality.index === 4 ? 'Poor' : weatherData.airQuality.index === 3 ? 'Moderate' : 'Good'})
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Wind className="h-4 w-4 text-gray-600" />
-          <span className="text-sm text-gray-800">{weatherData.airQuality.components.pm2_5.toFixed(1)} µg/m³</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Wind className="h-4 w-4 text-purple-500" />
-          <span className="text-sm text-gray-800">{weatherData.airQuality.components.o3.toFixed(2)} µg/m³</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <TrendingUp className="h-4 w-4 text-green-500" />
-          <span className="text-sm text-gray-800">{weatherData.forecast.length > 1 ? `AQI ${weatherData.airQuality.index} to ${weatherData.forecast[1].humidity > 50 ? 4 : 3}` : 'N/A'}</span>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function ChatWindow({ messages, onSendMessage, currentLocation, onPOIsUpdated, onSearchMarkerChange }: ChatWindowProps) {
   const [input, setInput] = useState('');
@@ -226,7 +274,7 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
 
   return (
     <div className="flex flex-col w-full h-[800px] bg-white bg-opacity-90 bg-[url('/texture.png')] rounded-lg shadow-lg border border-gray-200">
-      <div className="flex justify-between items-center p-4 border-b border-gray-300 bg-gray-100 shrink-0">
+      <div className="flex justify-between items-center p-4 border-b border-gray-300 bg-gray-100 shrink-0 rounded-lg">
         <h2 className="text-xl font-bold text-gray-800">ViatorAI Companion</h2>
       </div>
 
@@ -242,15 +290,17 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
               message.sender === 'user' ? 'text-right' : 'text-left'
             )}
           >
-            {message.data?.weatherData && message.sender === 'bot' && (
-              Array.isArray(message.data.weatherData) ? (
-                message.data.weatherData.map((wd: WeatherData, index: number) => (
-                  <WeatherCard key={index} weatherData={wd} />
-                ))
-              ) : (
-                <WeatherCard weatherData={message.data.weatherData} />
-              )
-            )}
+            <div className="max-w-[80%] w-full mb-2">
+              {message.data?.weatherData && message.sender === 'bot' && (
+                Array.isArray(message.data.weatherData) ? (
+                  message.data.weatherData.map((wd: WeatherData, index: number) => (
+                    <WeatherCard key={index} weatherData={wd} />
+                  ))
+                ) : (
+                  <WeatherCard weatherData={message.data.weatherData} />
+                )
+              )}
+            </div>
             <div
               className={cn(
                 'inline-block p-3 rounded-lg max-w-[80%] shadow-sm',
@@ -293,7 +343,7 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
         )}
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-300 bg-gray-50 shrink-0">
+      <form onSubmit={handleSubmit} className="p-4 border-y border-gray-300 bg-gray-50 shrink-0 rounded-b-lg">
         <div className="flex items-center space-x-2">
           <input
             type="text"
