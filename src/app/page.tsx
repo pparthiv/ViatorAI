@@ -1,13 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Globe, Cloud, MapPin, ArrowRight, Search, Menu, X } from "lucide-react";
+import { Globe, Github, Menu, X, Cloud, MapPin, ArrowRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import "leaflet/dist/leaflet.css";
+import { Location } from "@/types";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 // Dynamically import MainApp
 const MainApp = dynamic(() => import("@/components/MainApp"), {
@@ -19,7 +24,24 @@ const MainApp = dynamic(() => import("@/components/MainApp"), {
   ssr: false,
 });
 
-// Sample destinations and queries from new code
+// Dynamically import MapComponent to avoid SSR issues with Leaflet
+const MapComponent = dynamic(
+  () =>
+    import("@/components/MapComponent").then((mod) => mod.default),
+  {
+    loading: () => (
+      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin w-10 h-10 border-4 border-indigo-300 border-t-transparent rounded-full"></div>
+          <p className="text-indigo-300 text-sm font-medium">Loading your location...</p>
+        </div>
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+// Sample destinations and queries
 const popularDestinations = [
   {
     name: "Paris",
@@ -64,13 +86,14 @@ const travelQueries = [
 
 export default function Home() {
   const [showMainApp, setShowMainApp] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState({ lat: 51.505, lng: -0.09 });
+  const [currentLocation, setCurrentLocation] = useState<Location>({ lat: 51.505, lng: -0.09 });
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCurrentLocation({
@@ -88,100 +111,119 @@ export default function Home() {
     }
   }, []);
 
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchQuery.trim()) {
+      setInitialChatMessage(`Tell me about ${searchQuery}`);
+    } else {
+      setInitialChatMessage(null);
+    }
+    setShowMainApp(true);
+  };
+
+  const memoizedCurrentLocation = useMemo(() => currentLocation, [currentLocation.lat, currentLocation.lng]);
+
   if (showMainApp) {
-    return <MainApp />;
+    return <MainApp initialMessage={initialChatMessage} />;
   }
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen bg-white dark:bg-gradient-to-b from-[#0F2A44] to-[#1A3657]">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass-card">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Globe className="h-6 w-6 text-white" />
-            <span className="font-semibold text-xl text-white">ViatorAI</span>
+            <Link href="/" className="flex items-center gap-2 group">
+              <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.8 }}>
+                <Globe className="h-6 w-6 text-primary group-hover:text-primary/80 transition-colors" />
+              </motion.div>
+              <span className="font-semibold text-xl text-indigo-700 dark:text-indigo-300">ViatorAI</span>
+            </Link>
           </div>
-
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
+            <a
+              href="#"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors"
+            >
               Home
             </a>
-            <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
+            <a
+              href="#"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors"
+            >
               Explore
             </a>
-            <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
+            <a
+              href="#"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors"
+            >
               Weather
             </a>
-            <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
-              Travel Blog
-            </a>
-            <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors">
+            <a
+              href="#"
+              className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors"
+            >
               Contact
             </a>
+            <Link
+              href="https://github.com/pparthiv/ViatorAI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors"
+            >
+              <Github className="h-5 w-5" />
+            </Link>
           </nav>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden md:flex text-white border-white/20 hover:bg-white/20"
-            >
-              Sign In
-            </Button>
-            <Button
-              size="sm"
-              className="hidden md:flex bg-white text-slate-900 hover:bg-white/90"
-              onClick={() => setShowMainApp(true)}
-            >
-              Get Started
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden text-white"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </div>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-indigo-700 dark:text-indigo-300 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-
-        {/* Mobile menu */}
         {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass-card"
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800"
           >
             <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
-              <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors py-2">
+              <a
+                href="#"
+                className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors py-2"
+              >
                 Home
               </a>
-              <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors py-2">
+              <a
+                href="#"
+                className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors py-2"
+              >
                 Explore
               </a>
-              <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors py-2">
+              <a
+                href="#"
+                className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors py-2"
+              >
                 Weather
               </a>
-              <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors py-2">
-                Travel Blog
-              </a>
-              <a href="#" className="text-sm font-medium text-white/80 hover:text-white transition-colors py-2">
+              <a
+                href="#"
+                className="text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors py-2"
+              >
                 Contact
               </a>
-              <div className="flex flex-col gap-2">
-                <Button variant="outline" size="sm" className="w-full text-white border-white/20 hover:bg-white/20">
-                  Sign In
-                </Button>
-                <Button
-                  size="sm"
-                  className="w-full bg-white text-slate-900 hover:bg-white/90"
-                  onClick={() => setShowMainApp(true)}
-                >
-                  Get Started
-                </Button>
-              </div>
+              <Link
+                href="https://github.com/pparthiv/ViatorAI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-medium text-indigo-700 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-400 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Github className="h-5 w-5" />
+                <span>GitHub</span>
+              </Link>
             </div>
           </motion.div>
         )}
@@ -189,8 +231,19 @@ export default function Home() {
 
       <main className="pt-20">
         {/* Hero Section */}
-        <section className="relative py-16 md:py-24 overflow-hidden">
+        <section className="relative py-16 md:py-24 overflow-hidden bg-gradient-to-b from-white to-indigo-50 dark:from-[#0F2A44] dark:to-[#1A3657]">
           <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="flex items-center gap-3 mb-8"
+            >
+              <Globe className="h-12 w-12 text-indigo-500 dark:text-indigo-400" />
+              <h1 className="text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-500 dark:from-indigo-300 dark:to-purple-400">
+                ViatorAI
+              </h1>
+            </motion.div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
                 <motion.div
@@ -198,13 +251,13 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Badge variant="outline" className="mb-4 text-white border-white/30 bg-white/10">
+                  <Badge variant="outline" className="mb-4 text-indigo-700 border-indigo-500/30 bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-400/30 dark:bg-indigo-400/10">
                     Your AI Travel Companion
                   </Badge>
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-                    Experience The Magic Of <span className="text-indigo-300">Travel!</span>
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-indigo-700 dark:text-indigo-300 leading-tight">
+                    Experience The Magic Of <span className="text-indigo-500 dark:text-indigo-400">Travel!</span>
                   </h1>
-                  <p className="mt-4 text-lg text-blue-200 max-w-lg font-light">
+                  <p className="mt-4 text-lg text-indigo-600 dark:text-indigo-400 max-w-lg font-light">
                     Discover the world with weather-smart journey planning. Find perfect destinations based on your
                     weather preferences.
                   </p>
@@ -214,27 +267,28 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
-                  className="flex flex-col sm:flex-row gap-4"
+                  className="flex flex-col sm:flex-row gap-4 items-center"
                 >
-                  <div className="relative flex-1">
-                    <Input
-                      type="text"
-                      placeholder="Where would you like to go?"
-                      className="glass-input pr-10"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowMainApp(true)}
-                    className="glass-card px-8 py-3 rounded-full text-lg font-medium text-white flex items-center gap-2 hover:bg-white/20 transition-all duration-300 sm:w-auto"
-                  >
-                    Explore Now
-                    <ArrowRight className="w-5 h-5" />
-                  </motion.button>
+                  <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
+                    <div className="relative flex-1 w-full sm:w-auto">
+                      <Input
+                        type="text"
+                        placeholder="Where would you like to go?"
+                        className="glass-input h-12 pr-10 text-base text-indigo-700 dark:text-indigo-300 placeholder-indigo-500/50 dark:placeholder-indigo-400/50"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-indigo-500/40 dark:text-indigo-400/40" />
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="submit"
+                      className="glass-card h-12 px-6 rounded-full text-base font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 dark:hover:bg-indigo-400/20 transition-all duration-300 sm:w-auto"
+                    >
+                      Explore Now
+                    </motion.button>
+                  </form>
                 </motion.div>
 
                 <motion.div
@@ -243,12 +297,17 @@ export default function Home() {
                   transition={{ duration: 0.5, delay: 0.4 }}
                   className="flex flex-wrap gap-3 pt-4"
                 >
-                  <p className="text-sm text-white/60 mr-2">Popular searches:</p>
+                  <p className="text-sm text-indigo-600 dark:text-indigo-400/60 mr-2">Popular searches:</p>
                   {travelQueries.slice(0, 3).map((query, index) => (
                     <Badge
                       key={index}
                       variant="secondary"
-                      className="glass-card cursor-pointer hover:bg-white/20 transition-colors"
+                      className="glass-card cursor-pointer text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 dark:hover:bg-indigo-400/20 transition-colors"
+                      onClick={() => {
+                        setSearchQuery(query);
+                        setInitialChatMessage(`Tell me about ${query}`);
+                        setShowMainApp(true);
+                      }}
                     >
                       {query}
                     </Badge>
@@ -262,42 +321,23 @@ export default function Home() {
                 transition={{ duration: 0.7 }}
                 className="relative h-[400px] rounded-xl overflow-hidden glass-card"
               >
-                {mapLoaded ? (
-                  <iframe
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                      currentLocation.lng - 0.02
-                    }%2C${currentLocation.lat - 0.02}%2C${
-                      currentLocation.lng + 0.02
-                    }%2C${
-                      currentLocation.lat + 0.02
-                    }&layer=mapnik&marker=${currentLocation.lat}%2C${
-                      currentLocation.lng
-                    }&scrollWheelZoom=false&zoomControl=false`}
-                    className="w-full h-full border-0 rounded-xl"
-                  ></iframe>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
-                    <div className="flex flex-col items-center space-y-4">
-                      <div className="animate-spin w-10 h-10 border-4 border-indigo-300 border-t-transparent rounded-full"></div>
-                      <p className="text-indigo-300 text-sm font-medium">Loading your location...</p>
-                    </div>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <div className="absolute bottom-6 left-6 right-6">
-                  <h3 className="text-white text-xl font-bold mb-2">Discover Your World</h3>
-                  <p className="text-white/80 text-sm">Explore breathtaking destinations around the globe</p>
-                </div>
+                <MapComponent currentLocation={memoizedCurrentLocation} mapLoaded={mapLoaded} />
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* Popular Destinations */}
-        <section className="py-16">
+        {/* Divider */}
+        <div className="py-8">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-white mb-8">Popular Destinations</h2>
+            <hr className="border-indigo-200 dark:border-indigo-800/30" />
+          </div>
+        </div>
 
+        {/* Popular Destinations */}
+        <section className="py-16 bg-white dark:bg-[#0F2A44]">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-indigo-700 dark:text-indigo-300 mb-8">Popular Destinations</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {popularDestinations.map((destination, index) => (
                 <motion.div
@@ -308,7 +348,7 @@ export default function Home() {
                   viewport={{ once: true }}
                   className="group cursor-pointer"
                 >
-                  <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-lg">
+                  <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-lg hover:text-indigo-700">
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={destination.image}
@@ -323,9 +363,9 @@ export default function Home() {
                       <div className="flex justify-between items-center">
                         <div>
                           <h3 className="font-semibold text-white">{destination.name}</h3>
-                          <p className="text-sm text-white/60">{destination.country}</p>
+                          <p className="text-sm text-white">{destination.country}</p>
                         </div>
-                        <Badge variant="outline" className="bg-indigo-600/30 text-indigo-300 border-indigo-300/30">
+                        <Badge variant="outline" className="bg-indigo-600/30 text-white border-indigo-300/30">
                           4.8 ★
                         </Badge>
                       </div>
@@ -337,18 +377,22 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Divider */}
+        <div className="py-8">
+          <div className="container mx-auto px-4">
+            <hr className="border-indigo-200 dark:border-indigo-800/30" />
+          </div>
+        </div>
+
         {/* Journey Steps */}
-        <section className="py-16">
+        <section className="py-16 bg-gradient-to-b from-indigo-50 to-white dark:from-[#1A3657] dark:to-[#0F2A44]">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Journey To The Skies Made Simple!
-              </h2>
-              <p className="text-blue-200 max-w-2xl mx-auto font-light">
+              <h2 className="text-3xl font-bold text-indigo-700 dark:text-indigo-300 mb-4">Journey To The Skies Made Simple!</h2>
+              <p className="text-indigo-600 dark:text-indigo-400 max-w-2xl mx-auto font-light">
                 Planning your perfect weather-based trip is easy with our simple process
               </p>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
@@ -363,7 +407,7 @@ export default function Home() {
                   title: "Check Weather",
                   description: "Get detailed weather forecasts and climate information for your chosen destination.",
                   icon: Cloud,
-                  color: "bg-indigo-500",
+                  color: "bg-primary",
                 },
                 {
                   step: "Step 3",
@@ -381,21 +425,21 @@ export default function Home() {
                   viewport={{ once: true }}
                   className="relative"
                 >
-                  <Card className="glass-card h-full">
+                  <Card className="h-full border-slate-200 dark:border-slate-800">
                     <CardContent className="p-6 flex flex-col items-center text-center">
                       <div className={`${step.color} w-16 h-16 rounded-full flex items-center justify-center mb-4`}>
                         <step.icon className="h-8 w-8 text-white" />
                       </div>
                       <div className="space-y-2">
-                        <p className="text-sm font-medium text-indigo-300">{step.step}</p>
+                        <p className="text-sm font-medium text-primary">{step.step}</p>
                         <h3 className="text-xl font-semibold text-white">{step.title}</h3>
-                        <p className="text-blue-200 font-light">{step.description}</p>
+                        <p className="text-slate-300">{step.description}</p>
                       </div>
                     </CardContent>
                   </Card>
                   {index < 2 && (
-                    <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
-                      <ArrowRight className="h-6 w-6 text-white/60" />
+                    <div className="hidden md:block absolute top-1/2 -right-7 transform -translate-y-1/2 z-10">
+                      <ArrowRight className="h-6 w-6 text-slate-400" />
                     </div>
                   )}
                 </motion.div>
@@ -411,81 +455,76 @@ export default function Home() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Globe className="h-6 w-6 text-indigo-300" />
-                  <span className="font-semibold text-xl text-white">ViatorAI</span>
+                  <span className="font-semibold text-xl text-indigo-700 dark:text-indigo-300">ViatorAI</span>
                 </div>
-                <p className="text-white/60 text-sm">
+                <p className="text-indigo-600 dark:text-indigo-400/60 text-sm">
                   Your intelligent travel companion for weather-smart journey planning.
                 </p>
               </div>
-
               <div>
-                <h3 className="font-semibold text-white mb-4">Quick Links</h3>
+                <h3 className="font-semibold text-indigo-700 dark:text-indigo-300 mb-4">Quick Links</h3>
                 <ul className="space-y-2">
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Home
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Explore
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Weather
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
-                      Travel Blog
                     </a>
                   </li>
                 </ul>
               </div>
-
               <div>
-                <h3 className="font-semibold text-white mb-4">Resources</h3>
+                <h3 className="font-semibold text-indigo-700 dark:text-indigo-300 mb-4">Resources</h3>
                 <ul className="space-y-2">
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       FAQ
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Support
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Privacy Policy
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-white/60 hover:text-white text-sm">
+                    <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400 text-sm">
                       Terms of Service
                     </a>
                   </li>
                 </ul>
               </div>
-
               <div>
-                <h3 className="font-semibold text-white mb-4">Subscribe</h3>
-                <p className="text-white/60 text-sm mb-4">Get the latest updates and offers.</p>
+                <h3 className="font-semibold text-indigo-700 dark:text-indigo-300 mb-4">Subscribe</h3>
+                <p className="text-indigo-600 dark:text-indigo-400/60 text-sm mb-4">Get the latest updates and offers.</p>
                 <div className="flex gap-2">
-                  <Input type="email" placeholder="Your email" className="glass-input" />
-                  <Button size="sm" className="bg-white text-slate-900 hover:bg-white/90">
+                  <Input
+                    type="email"
+                    placeholder="Your email"
+                    className="glass-input text-indigo-700 dark:text-indigo-300 placeholder-indigo-500/50 dark:placeholder-indigo-400/50"
+                  />
+                  <Button size="sm" className="bg-indigo-500 text-indigo-300 hover:bg-indigo-600">
                     Subscribe
                   </Button>
                 </div>
               </div>
             </div>
-
-            <div className="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
-              <p className="text-white/60 text-sm">© {new Date().getFullYear()} ViatorAI. All rights reserved.</p>
+            <div className="border-t border-indigo-500/10 dark:border-indigo-400/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
+              <p className="text-indigo-600 dark:text-indigo-400/60 text-sm">© {new Date().getFullYear()} ViatorAI. All rights reserved.</p>
               <div className="flex gap-4 mt-4 sm:mt-0">
-                <a href="#" className="text-white/60 hover:text-white">
+                <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400">
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                       fillRule="evenodd"
@@ -494,12 +533,12 @@ export default function Home() {
                     />
                   </svg>
                 </a>
-                <a href="#" className="text-white/60 hover:text-white">
+                <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400">
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
                   </svg>
                 </a>
-                <a href="#" className="text-white/60 hover:text-white">
+                <a href="#" className="text-indigo-600 dark:text-indigo-400/60 hover:text-indigo-500 dark:hover:text-indigo-400">
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                       fillRule="evenodd"

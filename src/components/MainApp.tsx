@@ -28,7 +28,11 @@ interface ChatResponse {
   } | null;
 }
 
-export default function MainApp() {
+interface MainAppProps {
+  initialMessage?: string | null;
+}
+
+export default function MainApp({ initialMessage }: MainAppProps) {
   const [isClient, setIsClient] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [location, setLocation] = useState<Location>({ lat: 51.505, lng: -0.09 });
@@ -53,6 +57,12 @@ export default function MainApp() {
     }
   }, [currentLocation]);
 
+  useEffect(() => {
+    if (initialMessage && isClient && locationLoaded && currentLocation) {
+      handleSendMessage(initialMessage);
+    }
+  }, [initialMessage, isClient, locationLoaded, currentLocation]);
+
   const fetchPlaceNameAndNews = async () => {
     if (!currentLocation) return;
 
@@ -61,12 +71,9 @@ export default function MainApp() {
       const name = await getPlaceNameFromCoordinates(currentLocation.lat, currentLocation.lng);
       if (name) {
         setPlaceName(name);
-        // console.log('MainApp: Fetched place name:', name);
-
         const news = await getLocationNews(name, 10);
         if (news) {
           setArticles(news);
-          // console.log('MainApp: News articles set:', news);
         } else {
           setArticles([]);
           console.warn('MainApp: No news articles found for:', name);
@@ -85,7 +92,6 @@ export default function MainApp() {
 
   const handleSendMessage = async (content: string): Promise<ChatResponse> => {
     if (!locationLoaded || !currentLocation) {
-      // console.log('MainApp: Cannot send message, location not ready. locationLoaded:', locationLoaded, 'currentLocation:', currentLocation);
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), content: 'Please wait, location is still loading...', sender: 'bot', timestamp: new Date() },
@@ -132,11 +138,10 @@ export default function MainApp() {
             'unknown',
           priority: poi.priority,
         }));
-        // console.log('MainApp: Setting POIs:', mappedPois);
         setPois(mappedPois);
-        (window as any).latestSpiralWeatherData = response.data.weatherData || [];
-      } else {
-        // console.log('MainApp: No POIs to set from response:', response.data);
+        if (typeof window !== 'undefined') {
+          (window as any).latestSpiralWeatherData = response.data.weatherData || [];
+        }
       }
 
       return response as ChatResponse;
@@ -151,11 +156,9 @@ export default function MainApp() {
   };
 
   const handleLocationChange = (loc: Location | null) => {
-    // console.log('MainApp: handleLocationChange called with:', loc);
     if (loc) {
       setCurrentLocation(loc);
       setLocationLoaded(true);
-      // console.log('MainApp: Location successfully set to:', loc);
     } else {
       console.warn('MainApp: Received null location in handleLocationChange');
     }
@@ -174,7 +177,6 @@ export default function MainApp() {
   };
 
   const handleSearchMarkerChange = (marker: Location | null, radiusKm?: number) => {
-    // console.log('MainApp: Setting search marker:', marker, 'with radius:', radiusKm);
     setSearchMarker(marker);
     setSearchRadius(radiusKm ? radiusKm * 1000 : 0);
   };
@@ -225,7 +227,6 @@ export default function MainApp() {
                 </div>
               )}
             </div>
-
             <div className="lg:col-span-5 space-y-8">
               {locationLoaded && currentLocation ? (
                 <div className="glass-card p-1 shadow-lg rounded-lg overflow-hidden">
