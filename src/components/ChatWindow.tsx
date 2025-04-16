@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Cloud, CloudRain, CloudSnow, Sun, Zap, Wind, Gauge, TrendingUp, Moon, Droplet, Sunrise } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CustomCard, CustomCardContent, CustomCardHeader, CustomCardTitle } from '@/components/ui/custom-card';
 import { cn } from '@/lib/utils';
 import { Message, WeatherData, Location, POI } from '@/types';
 import { ArrowRight, Clock } from "lucide-react"
@@ -50,14 +50,14 @@ export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherDat
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <CustomCard>
+      <CustomCardHeader>
         <div className="absolute inset-0 rounded-xl">
           <CloudBackground />
         </div>
-      </CardHeader>
+      </CustomCardHeader>
 
-      <CardContent>
+      <CustomCardContent>
         <div className="flex justify-between items-start mb-2">
           <div>
             <h1 className="text-4xl font-bold text-slate-800">{weatherData.city.name}</h1>
@@ -144,8 +144,8 @@ export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherDat
             </span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </CustomCardContent>
+    </CustomCard>
   )
 }
 

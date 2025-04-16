@@ -148,7 +148,7 @@ const MapControl: React.FC<MapControlProps> = ({ icon, label, onClick, active, c
     <button
       onClick={onClick}
       className={cn(
-        "neomorphic w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200",
+        "neomorphic-button w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200",
         active && "ring-2 ring-blue-500 ring-opacity-50",
         className
       )}
@@ -509,7 +509,7 @@ export default function MapSection({
           label={isTaggingMode ? "Cancel marker placement" : "Place a marker"}
           onClick={toggleTaggingMode}
           active={isTaggingMode}
-          className={cn(isTaggingMode ? "bg-green-500 text-white hover:bg-green-600" : "bg-secondary text-foreground hover:bg-secondary/80")}
+          className={cn(isTaggingMode ? "bg-green-500 text-white hover:bg-green-600" : "bg-black text-foreground hover:bg-black/80")}
         />
         <MapControl
           icon={<Map size={20} />}
@@ -527,7 +527,7 @@ export default function MapSection({
             label={label}
             onClick={() => handleLayerChange(key)}
             active={activeLayer === key}
-            className={cn("bg-secondary text-foreground hover:bg-secondary/80", activeLayer === key && "opacity-50 cursor-not-allowed")}
+            className={cn("bg-black text-foreground hover:bg-black/80", activeLayer === key && "opacity-50 cursor-not-allowed")}
             labelPosition="left"
           />
         ))}

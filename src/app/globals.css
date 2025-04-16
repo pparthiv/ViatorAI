@@ -4,24 +4,51 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 1.2%;
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --ring: 216 34% 17%;
-    --radius: 1rem;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+    --glass-blur: 10px;
+    --glass-opacity: 0.15;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
     --glass-blur: 10px;
     --glass-opacity: 0.15;
   }
@@ -33,7 +60,7 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-slate-900 to-slate-950 text-slate-100 min-h-screen relative overflow-x-hidden font-sans;
+    @apply bg-[hsl(222.2_84%_4.9%)] text-[hsl(210_40%_98%)];
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -78,11 +105,10 @@
 }
 
 @layer components {
-
   .weather-popup .leaflet-popup-content-wrapper {
-    background: transparent !important; /* Remove Leaflet's default background */
-    border: none !important; /* Remove Leaflet's default border */
-    box-shadow: none !important; /* Remove Leaflet's default shadow */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     @apply bg-slate-900/[var(--glass-opacity)] backdrop-blur-[var(--glass-blur)]
           border border-white/15 rounded-[var(--radius)]
           shadow-[0_10px_40px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)]
@@ -92,8 +118,8 @@
   }
 
   .weather-popup .leaflet-popup-content {
-    margin: 0 !important; /* Remove default padding/margins */
-    width: 100% !important; /* Ensure it takes the full custom width */
+    margin: 0 !important;
+    width: 100% !important;
   }
 
   .leaflet-container {
@@ -212,8 +238,8 @@
   }
 
   .weather-marker {
-    pointer-events: auto; /* Allow interaction */
-    transform: translate(-50%, -100%); /* Adjust positioning if needed */
+    pointer-events: auto;
+    transform: translate(-50%, -100%);
   }
 }
 
