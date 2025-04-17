@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import "leaflet/dist/leaflet.css";
 import { Location } from "@/types";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
 import React from "react";
 
 // Dynamically import MainApp
@@ -135,7 +135,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
               <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.8 }}>
-                <Globe className="h-6 w-6 text-primary group-hover:text-primary/80 transition-colors" />
+                <Image src='/viatorai_color_logo.png' height={24} width={24} alt='Viator AI Logo'/>
               </motion.div>
               <span className="font-semibold text-xl text-indigo-700 dark:text-indigo-300">ViatorAI</span>
             </Link>
@@ -239,7 +239,7 @@ export default function Home() {
               transition={{ duration: 0.8 }}
               className="flex items-center gap-3 mb-8"
             >
-              <Globe className="h-12 w-12 text-indigo-500 dark:text-indigo-400" />
+              <Image src='/viatorai_color_logo.png' height={48} width={48} alt='Viator AI Logo'/>
               <h1 className="text-4xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-500 dark:from-indigo-300 dark:to-purple-400">
                 ViatorAI
               </h1>
@@ -454,7 +454,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <Globe className="h-6 w-6 text-indigo-300" />
+                  <Image src='/viatorai_color_logo.png' height={24} width={24} alt='Viator AI Logo'/>
                   <span className="font-semibold text-xl text-indigo-700 dark:text-indigo-300">ViatorAI</span>
                 </div>
                 <p className="text-indigo-600 dark:text-indigo-400/60 text-sm">

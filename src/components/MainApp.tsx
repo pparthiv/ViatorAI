@@ -45,7 +45,6 @@ export default function MainApp({ initialMessage }: MainAppProps) {
   const [pois, setPois] = useState<POI[]>([]);
   const [articles, setArticles] = useState<any[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
-  const [placeName, setPlaceName] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
