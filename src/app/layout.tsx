@@ -28,9 +28,10 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        {children}
+        <div>Under maintenance</div>
+        {/* {children}
         <Analytics />
-        <SpeedInsights />
+        <SpeedInsights /> */}
       </body>
     </html>
   );
