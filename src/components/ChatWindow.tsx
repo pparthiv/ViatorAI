@@ -2,20 +2,26 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Cloud, CloudRain, CloudSnow, Sun, Zap, Wind, Gauge, TrendingUp, Moon, Droplet, Sunrise } from 'lucide-react';
+import { Send, Cloud, CloudRain, CloudSnow, Sun, Zap, Wind, Gauge, TrendingUp, Moon, Droplet, Sunrise, HelpCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomCard, CustomCardContent, CustomCardHeader, CustomCardTitle } from '@/components/ui/custom-card';
 import { cn } from '@/lib/utils';
 import { Message, WeatherData, Location, POI } from '@/types';
-import { ArrowRight, Clock } from "lucide-react"
 import { CloudBackground } from './ui/cloud-background';
+
+interface ChatResponse {
+  content: string;
+  data: {
+    pois: POI[];
+    center: Location;
+    radiusKm: number;
+    weatherData?: WeatherData | WeatherData[];
+  } | null;
+}
 
 interface ChatWindowProps {
   messages: Message[];
-  onSendMessage: (content: string) => Promise<{
-    content: string;
-    data: { pois: any[]; center: Location; radiusKm: number; weatherData?: WeatherData | WeatherData[] } | null;
-  }>;
+  onSendMessage: (content: string, isInitialMessage?: boolean) => Promise<ChatResponse>;
   currentLocation: Location;
   onPOIsUpdated?: (pois: POI[], center: Location, radiusKm: number) => void;
   onSearchMarkerChange?: (marker: Location | null, radiusKm?: number) => void;
@@ -33,21 +39,19 @@ function parseMarkdown(text: string): string {
 }
 
 export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherData }) => {
-  // Calculate time until sunset
-  const now = new Date()
-  const sunset = new Date(weatherData.city.sunset * 1000)
+  const now = new Date();
+  const sunset = new Date(weatherData.city.sunset * 1000);
   const timeUntilSunset =
     sunset > now
       ? `+${Math.floor((sunset.getTime() - now.getTime()) / (1000 * 60 * 60))}:${String(Math.floor(((sunset.getTime() - now.getTime()) / (1000 * 60)) % 60)).padStart(2, "0")}`
-      : ""
+      : "";
 
-  // Get AQI text
   const getAqiText = (index: number) => {
-    if (index <= 2) return "Good"
-    if (index === 3) return "Moderate"
-    if (index === 4) return "Poor"
-    return "Very Poor"
-  }
+    if (index <= 2) return "Good";
+    if (index === 3) return "Moderate";
+    if (index === 4) return "Poor";
+    return "Very Poor";
+  };
 
   return (
     <CustomCard>
@@ -71,17 +75,17 @@ export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherDat
 
           <div className="flex flex-col items-center">
             <div className="w-28 h-28">
-                {weatherData.forecast[0].weather.main === 'Clear' ? (
-                  <Sun className="w-28 h-28 text-yellow-500" />
-                ) : weatherData.forecast[0].weather.main === 'Rain' ? (
-                  <CloudRain className="w-28 h-28 text-blue-500" />
-                ) : weatherData.forecast[0].weather.main === 'Snow' ? (
-                  <CloudSnow className="w-28 h-28 text-white" />
-                ) : weatherData.forecast[0].weather.main === 'Thunderstorm' ? (
-                  <Zap className="w-28 h-28 text-yellow-600" />
-                ) : (
-                  <Cloud className="w-28 h-28 text-gray-400" />
-                )}
+              {weatherData.forecast[0].weather.main === 'Clear' ? (
+                <Sun className="w-28 h-28 text-yellow-500" />
+              ) : weatherData.forecast[0].weather.main === 'Rain' ? (
+                <CloudRain className="w-28 h-28 text-blue-500" />
+              ) : weatherData.forecast[0].weather.main === 'Snow' ? (
+                <CloudSnow className="w-28 h-28 text-white" />
+              ) : weatherData.forecast[0].weather.main === 'Thunderstorm' ? (
+                <Zap className="w-28 h-28 text-yellow-600" />
+              ) : (
+                <Cloud className="w-28 h-28 text-gray-400" />
+              )}
             </div>
             <span className="text-slate-700 text-lg" style={{ textTransform: 'capitalize' }}>{weatherData.clouds.name}</span>
           </div>
@@ -146,12 +150,13 @@ export const WeatherCard: React.FC<{ weatherData: WeatherData }> = ({ weatherDat
         </div>
       </CustomCardContent>
     </CustomCard>
-  )
-}
+  );
+};
 
 export default function ChatWindow({ messages, onSendMessage, currentLocation, onPOIsUpdated, onSearchMarkerChange }: ChatWindowProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,10 +181,10 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
     try {
       const response = await onSendMessage(input);
       if (response.data && onPOIsUpdated) {
-        const mappedPois: POI[] = response.data.pois.map((poi) => ({
+        const mappedPois: POI[] = response.data.pois.map((poi: POI) => ({
           id: poi.id?.toString() || Date.now().toString(),
           lat: poi.lat,
-          lng: poi.lng || poi.lon,
+          lng: poi.lng,
           name: poi.name || (poi.tags && poi.tags.name) || 'Unnamed',
           category:
             poi.category ||
@@ -195,39 +200,23 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
       }
 
       const planTripMatch = input.match(/^Plan a trip to\s+([A-Za-z\s]+)(?:\s+for\s+(\d+)\s+days)?$/i);
-      if (planTripMatch) {
-        if (response.data?.center && onSearchMarkerChange) {
-          onSearchMarkerChange(response.data.center, response.data.radiusKm);
-        }
+      if (planTripMatch && response.data?.center && onSearchMarkerChange) {
+        onSearchMarkerChange(response.data.center, response.data.radiusKm);
       } else {
         const tellMeAboutMatch = input.match(/^Tell me about\s+([A-Za-z\s]+)$/i);
         if ((tellMeAboutMatch || planTripMatch) && response.data?.center && onSearchMarkerChange) {
           onSearchMarkerChange(response.data.center, response.data.radiusKm);
         }
       }
-
-      messages.push({
-        id: Date.now().toString(),
-        content: response.content,
-        sender: 'bot',
-        timestamp: new Date(),
-        data: response.data,
-      });
-
-      setIsTyping(false);
     } catch (error) {
       console.error('ChatWindow: Error processing message:', error);
-      messages.push({
-        id: Date.now().toString(),
-        content: 'Oops, something went wrong. Please try again!',
-        sender: 'bot',
-        timestamp: new Date(),
-      });
+      await onSendMessage('Oops, something went wrong. Please try again!', false);
+    } finally {
       setIsTyping(false);
     }
   };
 
-    const getFollowUpQuestions = (messageContent: string): string[] => {
+  const getFollowUpQuestions = (messageContent: string): string[] => {
     const lowerContent = messageContent.toLowerCase();
     const locationMatch = messages[messages.length - 1]?.content.match(/Location name: (\w+)/i)?.[1] || 'this location';
 
@@ -254,6 +243,7 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
       general: [
         `Tell me about ${locationMatch}`,
         `Plan a trip to ${locationMatch}`,
+        'Help',
       ],
     };
 
@@ -272,11 +262,82 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
     handleSubmit({ preventDefault: () => {} } as React.FormEvent);
   };
 
+  const toggleModal = () => {
+    setIsModalOpen(!isModalOpen);
+  };
+
   return (
     <div className="flex flex-col w-full h-[800px] bg-white bg-opacity-90 bg-[url('/texture.png')] rounded-lg shadow-lg border border-gray-200">
       <div className="flex justify-between items-center p-4 border-b border-gray-300 bg-gray-100 shrink-0 rounded-lg">
         <h2 className="text-xl font-bold text-gray-800">ViatorAI Companion</h2>
+        <button
+          onClick={toggleModal}
+          className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors duration-200"
+          title="View ViatorAI Guide"
+        >
+          <HelpCircle size={16} />
+          Guide
+        </button>
       </div>
+
+      {isModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={toggleModal}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-800 mb-4">ViatorAI Guide</h3>
+            <div className="text-gray-700 space-y-4">
+              <div>
+                <h4 className="font-semibold">Available Commands</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>Plan a trip</strong>: "Plan a trip to Paris" or "Plan a trip to Paris for 7 days" - Get a detailed itinerary with weather, air quality, and local tips.</li>
+                  <li><strong>Get information</strong>: "Tell me about London" - Learn about weather, air quality, clothing advice, and recent news.</li>
+                  <li><strong>Find activities</strong>: "What are the things I can do in Rome?" or "Things to do near Tokyo within 10 km" - Discover attractions and points of interest.</li>
+                  <li><strong>Check weather</strong>: "What's the 5-day forecast for Sydney?" or "How's the air quality in Delhi?" - Get detailed weather and air quality data.</li>
+                  <li><strong>Learn about weather terms</strong>: "What is AQI?" or "How is visibility measured?" - Get explanations of weather and air quality terms.</li>
+                  <li><strong>Get news</strong>: "Any recent news from New York?" - Stay updated with local news (limited to 10 requests per day).</li>
+                  <li><strong>Weather preferences</strong>: "What are some cold places I can go to?" - Find nearby locations matching your weather preferences (e.g., warm, rainy).</li>
+                  <li><strong>Help</strong>: "Help" - Show this guide in the chat.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold">Map Controls</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>Clear markers and POIs</strong>: Reset the map to remove temporary markers and points of interest.</li>
+                  <li><strong>Center on current location</strong>: Zoom the map to your current location for easy navigation.</li>
+                  <li><strong>Place a marker</strong>: Drop a temporary marker to explore a specific spot (use "this location" in chat).</li>
+                  <li><strong>Discover nearby attractions</strong>: View points of interest (POIs) within a specified radius (default 5 km).</li>
+                  <li><strong>Toggle map layers</strong>: Switch between map views like Standard, Satellite, or Terrain for different perspectives.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold">Tips</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Use "this location" and drop a marker to refer to a specific spot on the map.</li>
+                  <li>Ask follow-up questions like "What are different map layers?" for more details.</li>
+                  <li>Ensure location services are enabled for accurate current location data.</li>
+                </ul>
+              </div>
+            </div>
+            <button
+              onClick={toggleModal}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
+            >
+              Close
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
 
       <ScrollArea className="flex-1 p-4 custom-scrollbar" ref={scrollAreaRef}>
         {messages.map((message) => (
@@ -297,7 +358,7 @@ export default function ChatWindow({ messages, onSendMessage, currentLocation, o
                     <WeatherCard key={index} weatherData={wd} />
                   ))
                 ) : (
-                  <WeatherCard weatherData={message.data.weatherData} />
+                  <WeatherCard key={message.id} weatherData={message.data.weatherData} />
                 )
               )}
             </div>

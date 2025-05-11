@@ -1,17 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-
-export { getChatResponse } from './services/chatService';
-
-export function createChatModel(modelName: string = 'gemini-2.0-flash') {
-  return genAI.getGenerativeModel({ model: modelName });
-}
-
-export function createChat(model = createChatModel()) {
-  return model.startChat();
-}
-
 export type GeminiResponse = {
   content: string;
   data: {
@@ -22,3 +8,34 @@ export type GeminiResponse = {
     suggestedLocations?: { name: string; lat: number; lng: number }[];
   } | null;
 };
+
+export async function sendChatMessage(
+  message: string,
+  history: { role: string; parts: string }[],
+  tempMarkerCoords?: [number, number],
+  currentLocationCoords?: [number, number],
+  modelName: string = 'gemini-2.0-flash'
+): Promise<GeminiResponse> {
+  try {
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history,
+        tempMarkerCoords,
+        currentLocationCoords,
+        modelName,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API request failed with status ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('gemini.ts: Error sending chat message:', error);
+    return { content: 'Yikes, something went wrong with the chat. Try again soon!', data: null };
+  }
+}

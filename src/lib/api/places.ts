@@ -20,7 +20,6 @@ export async function getNearbyPOIs(lat: number, lon: number, radiusKm: number):
 out body;`.replace(/\s+/g, ' ');
 
   const url = 'https://overpass-api.de/api/interpreter';
-  // console.log('Fetching POIs from Overpass API with radius:', radiusKm, 'km');
 
   try {
     const response = await fetch(url, {

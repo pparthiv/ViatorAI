@@ -25,14 +25,13 @@ interface NewsSectionProps {
   currentLocation: Location | null;
 }
 
-const LOCAL_NEWS_CACHE_KEY = 'local_news_cache';
-const COUNTRY_NEWS_CACHE_KEY = 'country_news_cache';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
-
 interface NewsCache {
   articles: Article[];
   timestamp: number;
 }
+
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const LOCATION_THRESHOLD = 0.01;
 
 export default function NewsSection({ articles: initialArticles, loading: initialLoading, currentLocation }: NewsSectionProps) {
   const [isLocalNews, setIsLocalNews] = useState(true);
@@ -40,9 +39,29 @@ export default function NewsSection({ articles: initialArticles, loading: initia
   const [loading, setLoading] = useState(initialLoading);
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [countryName, setCountryName] = useState<string | null>(null);
+  const [lastLocation, setLastLocation] = useState<Location | null>(null);
+
+  const hasLocationChanged = (newLoc: Location | null, oldLoc: Location | null): boolean => {
+    if (!newLoc || !oldLoc) return true;
+    return (
+      Math.abs(newLoc.lat - oldLoc.lat) > LOCATION_THRESHOLD ||
+      Math.abs(newLoc.lng - oldLoc.lng) > LOCATION_THRESHOLD
+    );
+  };
+
+  const getCacheKey = () => {
+    if (!currentLocation) return isLocalNews ? 'local_news_cache' : 'country_news_cache';
+    if (isLocalNews) {
+      return `local_news_cache_${currentLocation.lat.toFixed(4)}_${currentLocation.lng.toFixed(4)}`;
+    } else if (countryCode) {
+      return `country_news_cache_${countryCode}`;
+    }
+    return 'country_news_cache';
+  };
 
   useEffect(() => {
-    if (currentLocation) {
+    if (currentLocation && hasLocationChanged(currentLocation, lastLocation)) {
+      setLastLocation(currentLocation);
       fetchCountryData();
     }
   }, [currentLocation]);
@@ -88,15 +107,15 @@ export default function NewsSection({ articles: initialArticles, loading: initia
   const fetchNews = async () => {
     if (!currentLocation) return;
     setLoading(true);
-    const cacheKey = isLocalNews ? LOCAL_NEWS_CACHE_KEY : COUNTRY_NEWS_CACHE_KEY;
+    const cacheKey = getCacheKey();
     const cachedArticles = getCachedNews(cacheKey);
-  
+
     if (cachedArticles) {
       setArticles(cachedArticles);
       setLoading(false);
       return;
     }
-  
+
     try {
       const query = isLocalNews
         ? await getPlaceNameFromCoordinates(currentLocation.lat, currentLocation.lng)

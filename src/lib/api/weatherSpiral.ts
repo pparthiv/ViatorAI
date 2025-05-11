@@ -2,9 +2,6 @@ import { getPlaceNameFromCoordinates } from '@/lib/api/geocoding';
 import { WeatherData, Location } from '@/types';
 import { computeDestinationPoint } from 'geolib';
 
-const SPIRAL_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_SPIRAL_API_KEY;
-const FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast';
-const AIR_POLLUTION_URL = 'https://api.openweathermap.org/data/2.5/air_pollution/forecast';
 const RADIUS_KM = 200;
 const NUM_POINTS = 30;
 const DISTANCE_STEP = Math.sqrt((RADIUS_KM ** 2) / NUM_POINTS);
@@ -30,59 +27,61 @@ interface SpiralCache {
 }
 
 function generateSpiralPoints(center: Location): Location[] {
-    const points: Location[] = [];
-    // console.log('Generating spiral points for center:', center);
-  
-    for (let i = 0; i < NUM_POINTS; i++) {
-      const r = DISTANCE_STEP * Math.sqrt(i);
-      const theta = (i * ANGLE_STEP * Math.PI) / 180;
-  
-      if (r > RADIUS_KM) break;
-  
-      const newPoint = computeDestinationPoint(
-        { latitude: center.lat, longitude: center.lng },
-        r * 1000,
-        (theta * 180) / Math.PI
-      );
-  
-      points.push({
-        lat: newPoint.latitude,
-        lng: newPoint.longitude,
-      });
-    }
-  
-    // console.log('Generated points:', points);
-    return points;
+  const points: Location[] = [];
+  // console.log('Generating spiral points for center:', center);
+
+  for (let i = 0; i < NUM_POINTS; i++) {
+    const r = DISTANCE_STEP * Math.sqrt(i);
+    const theta = (i * ANGLE_STEP * Math.PI) / 180;
+
+    if (r > RADIUS_KM) break;
+
+    const newPoint = computeDestinationPoint(
+      { latitude: center.lat, longitude: center.lng },
+      r * 1000,
+      (theta * 180) / Math.PI
+    );
+
+    points.push({
+      lat: newPoint.latitude,
+      lng: newPoint.longitude,
+    });
+  }
+
+  // console.log('Generated points:', points);
+  return points;
 }
 
 async function getSpiralWeatherForecast(lat: number, lng: number): Promise<any> {
-  if (!SPIRAL_API_KEY) {
-    throw new Error('OpenWeatherMap Spiral API key not found');
-  }
-
-  const response = await fetch(`${FORECAST_URL}?lat=${lat}&lon=${lng}&appid=${SPIRAL_API_KEY}&units=metric`);
-  if (!response.ok) {
-    console.error(`Failed to fetch forecast for lat: ${lat}, lng: ${lng}`);
+  const url = `/api/spiral-weather?lat=${lat}&lon=${lng}&type=forecast`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch forecast for lat: ${lat}, lng: ${lng}, status: ${response.status}`);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching forecast for lat: ${lat}, lng: ${lng}:`, error);
     return null;
   }
-  return response.json();
 }
 
-// Fetch air pollution forecast
 async function getSpiralAirPollutionForecast(lat: number, lng: number): Promise<any> {
-  if (!SPIRAL_API_KEY) {
-    throw new Error('OpenWeatherMap Spiral API key not found');
-  }
-
-  const response = await fetch(`${AIR_POLLUTION_URL}?lat=${lat}&lon=${lng}&appid=${SPIRAL_API_KEY}`);
-  if (!response.ok) {
-    console.error(`Failed to fetch air pollution for lat: ${lat}, lng: ${lng}`);
+  const url = `/api/spiral-weather?lat=${lat}&lon=${lng}&type=air_pollution_forecast`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch air pollution for lat: ${lat}, lng: ${lng}, status: ${response.status}`);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching air pollution for lat: ${lat}, lng: ${lng}:`, error);
     return null;
   }
-  return response.json();
 }
 
-// Cache handling
 function getCachedSpiralData(): SpiralWeatherPoint[] | null {
   const cached = localStorage.getItem(CACHE_KEY);
   if (!cached) return null;
@@ -102,30 +101,24 @@ function setCachedSpiralData(points: SpiralWeatherPoint[]) {
   }
 }
 
-// Main function to get top 5 locations based on user preference
 export async function getSpiralWeatherLocations(
   center: Location,
   preference: string
 ): Promise<SpiralWeatherPoint[]> {
-  const cachedData = getCachedSpiralData();
-  if (cachedData) {
-    return sortSpiralPoints(cachedData, preference);
-  }
 
   const points = generateSpiralPoints(center);
 
-  // Fetch weather and air pollution data for all points
   const weatherPoints = await Promise.all(
     points.map(async (point) => {
       const forecast = await getSpiralWeatherForecast(point.lat, point.lng);
       const airPollution = await getSpiralAirPollutionForecast(point.lat, point.lng);
-      if (!forecast || !forecast.list || !airPollution || !airPollution.list) return null;
+      if (!forecast || !forecast.list || !airPollution || airPollution.length === 0) return null;
 
       const name = (await getPlaceNameFromCoordinates(point.lat, point.lng)) || 'Unknown Location';
       const avgTemp = forecast.list
-        .slice(0, 40) // 5 days (8 intervals/day * 5 = 40)
+        .slice(0, 40)
         .reduce((sum: number, entry: any) => sum + entry.main.temp, 0) / 40;
-      const avgAQI = airPollution.list
+      const avgAQI = airPollution
         .slice(0, 40)
         .reduce((sum: number, entry: any) => sum + entry.main.aqi, 0) / 40;
       const avgWindSpeed = forecast.list
@@ -152,14 +145,12 @@ export async function getSpiralWeatherLocations(
     })
   );
 
-  // Filter out null results and cache
   const validPoints = weatherPoints.filter((point): point is SpiralWeatherPoint => point !== null);
   setCachedSpiralData(validPoints);
 
   return sortSpiralPoints(validPoints, preference);
 }
 
-// Sort points based on preference
 function sortSpiralPoints(points: SpiralWeatherPoint[], preference: string): SpiralWeatherPoint[] {
   let sortedPoints: SpiralWeatherPoint[] = [];
 
@@ -170,7 +161,7 @@ function sortSpiralPoints(points: SpiralWeatherPoint[], preference: string): Spi
       .sort((a, b) => {
         const aRain = a.forecast.list.reduce((sum: number, entry: any) => sum + (entry.rain?.['3h'] || 0), 0);
         const bRain = b.forecast.list.reduce((sum: number, entry: any) => sum + (entry.rain?.['3h'] || 0), 0);
-        return bRain - aRain; // Most rain first
+        return bRain - aRain;
       })
       .slice(0, 5);
   } else if (prefLower.includes('cool') || prefLower.includes('cold') || prefLower.includes('not hot')) {
@@ -210,11 +201,10 @@ function sortSpiralPoints(points: SpiralWeatherPoint[], preference: string): Spi
   return sortedPoints;
 }
 
-// Format forecast data for WeatherData type
 export function formatSpiralWeatherData(point: SpiralWeatherPoint): WeatherData {
-  const forecastList = point.forecast.list.slice(0, 40); // 5 days
+  const forecastList = point.forecast.list.slice(0, 40);
   const firstEntry = forecastList[0];
-  const airPollutionList = point.airPollution.list.slice(0, 40);
+  const airPollutionList = point.airPollution.slice(0, 40);
 
   return {
     city: {

@@ -4,12 +4,35 @@ import { getWeatherData, getWeatherForecast, getCurrentAirPollution, getForecast
 import { getSpiralWeatherLocations, formatSpiralWeatherData } from '@/lib/api/weatherSpiral';
 import { getNearbyPOIs } from '@/lib/api/places';
 import { getWindDirectionCode, getWindDirectionName } from '@/lib/utils/wind';
-import { createChatModel, GeminiResponse } from '@/lib/gemini';
+import { sendChatMessage, GeminiResponse } from '@/lib/gemini';
 import { getLocationNews, Article } from '@/lib/api/news';
 
 const DAILY_NEWS_LIMIT = parseInt(process.env.NEXT_PUBLIC_DAILY_NEWS_LIMIT || '10', 10);
 const NEWS_REQUEST_KEY = 'news_requests';
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+// Helper function to check if a query is weather-related
+function isWeatherInfoQuery(message: string): boolean {
+  const lowerMessage = message.toLowerCase().trim();
+  return (
+    lowerMessage.includes('what is') ||
+    lowerMessage.includes('what does') ||
+    lowerMessage.includes('how is') ||
+    lowerMessage.includes('explain')
+  ) && (
+    lowerMessage.includes('aqi') ||
+    lowerMessage.includes('pm2.5') ||
+    lowerMessage.includes('pm10') ||
+    lowerMessage.includes('visibility') ||
+    lowerMessage.includes('humidity') ||
+    lowerMessage.includes('dew point') ||
+    lowerMessage.includes('uv index') ||
+    lowerMessage.includes('wind chill') ||
+    lowerMessage.includes('weather term') ||
+    lowerMessage.includes('measured') ||
+    lowerMessage.includes('calculated')
+  );
+}
 
 interface NewsRequestTracker {
   count: number;
@@ -47,7 +70,6 @@ function incrementNewsRequestCount(): void {
   localStorage.setItem(NEWS_REQUEST_KEY, JSON.stringify(tracker));
 }
 
-// Helper function to format news into a detailed summary
 function formatNewsSummary(articles: Article[], location: string, daysBack: number): string {
   if (!articles || articles.length === 0) {
     return `No news found for ${location} in the past ${daysBack} day${daysBack === 1 ? '' : 's'}.`;
@@ -67,7 +89,6 @@ function formatNewsSummary(articles: Article[], location: string, daysBack: numb
   return summary;
 }
 
-// Helper function to format 5-day forecast
 function formatForecast(forecastData: any, location: string): string {
   if (!forecastData || !forecastData.list) {
     return `No forecast data available for ${location}.`;
@@ -81,7 +102,6 @@ function formatForecast(forecastData: any, location: string): string {
   return forecastText;
 }
 
-// Helper function to suggest clothing based on weather
 function suggestClothing(weatherData: any, location: string): string {
   if (!weatherData) {
     return `I don’t have the weather data for ${location} to suggest clothing.`;
@@ -110,68 +130,137 @@ function suggestClothing(weatherData: any, location: string): string {
   return suggestion;
 }
 
+function getHelpGuide(): string {
+  return `
+**ViatorAI Guide**
+
+Welcome to ViatorAI, your ultimate travel companion! Here's how to make the most of the app with commands and map controls.
+
+**Available Commands**
+- **Plan a trip**: Use "Plan a trip to Paris" or "Plan a trip to Paris for 7 days" to get a detailed itinerary, including:
+  - Current weather (temperature, conditions, feels-like).
+  - 5-day forecast.
+  - Air quality (AQI, main pollutants).
+  - Health tips (e.g., wear a mask if AQI is moderate).
+  - Clothing advice based on weather.
+  - A day-by-day plan with activities, local cuisine, and map markers.
+- **Get information**: Try "Tell me about London" to receive:
+  - Current weather and air quality (displayed as a widget card).
+  - Clothing suggestions (e.g., bring an umbrella for rain).
+  - Local attractions and points of interest (POIs).
+  - Recent news from the past week (up to 10 requests per day).
+- **Find activities**: Ask "What are the things I can do in Rome?" or "Things to do near Tokyo within 10 km" to:
+  - Discover up to 10 POIs within a specified radius (default 5 km).
+  - See attractions on the map with details like name and category.
+- **Check weather**: Use commands like:
+  - "What's the 5-day forecast for Sydney?" for a detailed forecast.
+  - "How's the air quality in Delhi?" for AQI and pollutant data.
+  - "What should I wear in Chicago today?" for clothing advice.
+- **Learn about weather terms**: Ask questions like:
+  - "What is AQI?" or "What does PM2.5 mean?" for explanations of air quality terms.
+  - "How is visibility measured?" for details on weather measurement techniques.
+- **Get news**: Try "Any recent news from New York?" or "What are the updates regarding Berlin in the past 2 days?" to:
+  - Get a summary of local news (default: past week, up to 10 requests per day).
+  - Specify a time range (e.g., "past 3 days").
+- **Weather preferences**: Ask "What are some cold places I can go to?" or "What are some rainy places near me?" to:
+  - Find up to 5 locations within 200 km matching your weather preference (e.g., warm, snowy).
+  - See weather details and map markers for each location.
+- **Help**: Type "Help" to show this guide in the chat.
+
+**Map Controls**
+- **Clear markers and POIs**: Reset the map to remove all temporary markers and points of interest, giving you a clean slate.
+- **Center on current location**: Zoom the map to your current location (requires location services enabled).
+- **Place a marker**: Click on the map to drop a temporary marker. Use "this location" in the chat to refer to it (e.g., "Tell me about this location").
+- **Discover nearby attractions**: View POIs within a radius (default 5 km) when asking for activities. Markers appear on the map with details.
+- **Toggle map layers**: Switch between map views for different perspectives:
+  - *Standard*: Default view with roads, landmarks, and labels.
+  - *Satellite*: Aerial imagery for a real-world view.
+  - *Terrain*: Shows elevation and topography, great for outdoor planning.
+
+**Tips for Using ViatorAI**
+- **Location Context**: Use "this location" for temporary markers or "current location" for your device’s location. If no location is specified, I’ll use your current location (if available).
+- **Follow-Up Questions**: Ask specific questions like "What are different map layers?" or "How do I place a marker?" for detailed explanations about app features.
+- **News Limits**: News requests are limited to 10 per day. If you hit the limit, you’ll see a message to try again tomorrow.
+- **Location Services**: Enable location services for accurate current location data and personalized recommendations.
+- **Modal Guide**: Click the "Guide" button in the chat header to view this guide anytime.
+
+**Need More Help?**
+- Ask questions like "How do I clear the map?" or "What does the Terrain layer show?" for specific guidance.
+- If you’re stuck, type "Help" again or explore the modal guide in the header.
+
+Enjoy exploring with ViatorAI!
+  `;
+}
+
 export async function getChatResponse(
   message: string,
   tempMarkerCoords?: [number, number],
   currentLocationCoords?: [number, number]
 ): Promise<GeminiResponse> {
-  console.log('Received in getChatResponse:', { message, tempMarkerCoords, currentLocationCoords });
+  // console.log('Received in getChatResponse:', { message, tempMarkerCoords, currentLocationCoords });
 
   try {
-    const model = createChatModel();
-    const chat = model.startChat({
-      history: [
-        {
-          role: 'user',
-          parts: `
-            You're a friendly, chatty travel guide who loves helping with a warm, natural tone. You can:
-            1. Plan travel (e.g., "Plan a trip to Paris" or "Plan a trip to Paris for 7 days").
-            2. Share weather, air quality, and news info (e.g., "Tell me about London" or "Tell me about this location").
-            3. List nearby activities (e.g., "What are the things I can do in Paris (within 15 km)?" or "Things to do in this location").
-            4. Provide news updates (e.g., "What are the updates regarding London?").
-            5. Answer specific queries like:
-               - "How's the air quality in this location?"
-               - "What's the 5-day forecast for this location?"
-               - "What should I wear in this location today?"
-               - "Any recent news from this location?"
-            6. Suggest nearby locations based on weather preferences (e.g., "What are some colder places I can go to?").
+    const history = [
+      {
+        role: 'user',
+        parts: `
+          You're a friendly, chatty travel guide who loves helping with a warm, natural tone. You can:
+          1. Plan travel (e.g., "Plan a trip to Paris" or "Plan a trip to Paris for 7 days").
+          2. Share weather, air quality, and news info (e.g., "Tell me about London" or "Tell me about this location").
+          3. List nearby activities (e.g., "What are the things I can do in Paris (within 15 km)?" or "Things to do in this location").
+          4. Provide news updates (e.g., "What are the updates regarding London?").
+          5. Answer specific queries like:
+             - "How's the air quality in this location?"
+             - "What's the 5-day forecast for this location?"
+             - "What should I wear in this location today?"
+             - "Any recent news from this location?"
+          6. Suggest nearby locations based on weather preferences (e.g., "What are some colder places I can go to?").
+          7. Explain weather-related terms and measurements (e.g., "What is AQI?", "What is PM2.5?", "How is visibility measured?").
+          8. Explain app features when asked (e.g., "What are different map layers?" or "How do I place a marker?").
 
-            When parsing commands:
-            - Respond with friendly greetings and a conversational style, avoiding robotic titles like "Description".
-            - Use temporary marker coordinates [${tempMarkerCoords ? tempMarkerCoords.join(', ') : 'not provided'}] only when "temporary marker" or "this location" is mentioned.
-            - Use current location coordinates [${currentLocationCoords ? currentLocationCoords.join(', ') : 'not provided'}] for "this location", "current location", or as default when no place is given.
-            - If a place name is given (e.g., "Paris" in "Plan a trip to Paris"), fetch its coordinates using the API.
-            - For "Tell me about...":
-              - Return weather and air quality as structured data for a widget card.
-              - Include a natural text response with weather, health tips, clothing advice, local suggestions, and recent news (past week by default).
-            - For "Plan a trip to...":
-              - Start with a warm welcome and a summary that includes the current weather (temperature, condition, feels-like), 5-day forecast, air quality (AQI and main pollutant), a health tip (e.g., wear a mask if AQI is moderate or higher), and clothing advice.
-              - Provide a detailed, day-by-day itinerary for up to 5 days in a friendly, guide-like tone.
-              - Return a JSON object with:
-                - front: { placeName: string, description: string, experiences: string[] }
-                - second: { language: string, phrases: { french: string, english: string }[] }
-                - daily: { journeyTitle: string, dayNumber: number, highlights: { time: string, description: string }[], localExperiences: { cuisine: { items: string[], note: string }, activities: { items: string[], note: string } }, mapLabel1?: string, mapLabel2?: string }[] }
-              - Include a natural text summary of the trip plan for all days.
-            - For "What are the updates regarding..." or "Any recent news from...":
-              - Provide a concise summary of news, defaulting to the past week unless a specific time range is mentioned.
-            - For "What are the things I can do in..." or "Things to do in/near...":
-              - Parse for radius (default to 5 km if not specified).
-              - Suggest up to 10 POIs within the specified radius.
-            - For weather preference queries like "What are some [condition] places I can go to?":
-              - Use spiral weather data to suggest top 5 locations within 200km based on conditions.
-            - Format naturally with bold text and bullet points.
-            - Use location names instead of coordinates.
-            - Assume current date is ${new Date().toISOString().split('T')[0]}.
-            - Limit news requests to ${DAILY_NEWS_LIMIT} per day; if exceeded, say "You've hit the daily news limit of ${DAILY_NEWS_LIMIT} requests—check back tomorrow!"
-            - If a question is outside these capabilities, respond: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, and activities. What else can I assist with?"
-          `,
-        },
-        {
-          role: 'model',
-          parts: "Hey there! I’m your travel buddy, ready to guide you with a smile. Give me a destination or question, and let’s get started!",
-        },
-      ],
-    });
+          When parsing commands:
+          - Respond with friendly greetings and a conversational style, avoiding robotic titles like "Description".
+          - Use temporary marker coordinates [${tempMarkerCoords ? tempMarkerCoords.join(', ') : 'not provided'}] only when "temporary marker" or "this location" is mentioned.
+          - Use current location coordinates [${currentLocationCoords ? currentLocationCoords.join(', ') : 'not provided'}] for "this location", "current location", or as default when no place is given.
+          - If a place name is given (e.g., "Paris" in "Plan a trip to Paris"), fetch its coordinates using the API.
+          - For weather-related informational queries (e.g., "What is AQI?", "How is visibility measured?"):
+            - Provide clear, concise explanations about weather terms or measurement methods.
+            - Example: For "What is AQI?", explain the Air Quality Index, its scale, and health implications.
+            - Example: For "How is visibility measured?", describe tools like transmissometers and their use in weather reporting.
+          - For "Tell me about...":
+            - Return weather and air quality as structured data for a widget card.
+            - Include a natural text response with weather, health tips, clothing advice, local suggestions, and recent news (past week by default).
+          - For "Plan a trip to...":
+            - Start with a warm welcome and a summary that includes the current weather (temperature, condition, feels-like), 5-day forecast, air quality (AQI and main pollutant), a health tip (e.g., wear a mask if AQI is moderate or higher), and clothing advice.
+            - Provide a detailed, day-by-day itinerary for up to 5 days in a friendly, guide-like tone.
+            - Return a JSON object with:
+              - front: { placeName: string, description: string, experiences: string[] }
+              - second: { language: string, phrases: { french: string, english: string }[] }
+              - daily: { journeyTitle: string, dayNumber: number, highlights: { time: string, description: string }[], localExperiences: { cuisine: { items: string[], note: string }, activities: { items: string[], note: string } }, mapLabel1?: string, mapLabel2?: string }[] }
+            - Include a natural text summary of the trip plan for all days.
+          - For "What are the updates regarding..." or "Any recent news from...":
+            - Provide a concise summary of news, defaulting to the past week unless a specific time range is mentioned.
+          - For "What are the things I can do in..." or "Things to do in/near...":
+            - Parse for radius (default to 5 km if not specified).
+            - Suggest up to 10 POIs within the specified radius.
+          - For weather preference queries like "What are some [condition] places I can go to?":
+            - Use spiral weather data to suggest top 5 locations within 200km based on conditions.
+          - For app feature-questions (e.g., "What are different map layers?"):
+            - Provide clear, concise explanations based on the app's functionality.
+            - Example: For "What are different map layers?", respond: "ViatorAI offers three map layers: Standard (roads and landmarks), Satellite (aerial imagery), and Terrain (elevation and topography, great for hiking or outdoor planning)."
+            - Example: For "How do I place a marker?", respond: "Click anywhere on the map to drop a temporary marker. Then, use 'this location' in the chat to refer to it, like 'Tell me about this location'."
+          - Format naturally with bold text and bullet points.
+          - Use location names instead of coordinates.
+          - Assume current date is ${new Date().toISOString().split('T')[0]}.
+          - Limit news requests to ${DAILY_NEWS_LIMIT} per day; if exceeded, say "You've hit the daily news limit of ${DAILY_NEWS_LIMIT} requests—check back tomorrow!"
+          - If a question is outside these capabilities (except weather info or app feature questions), respond: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, activities, weather terms, and app features. What else can I assist with?"
+        `,
+      },
+      {
+        role: 'model',
+        parts: "Hey there! I’m your travel buddy, ready to guide you with a smile. Give me a destination, weather question, or app feature query, and let’s get started!",
+      },
+    ];
 
     let finalCoords: [number, number] | undefined = currentLocationCoords;
     let weatherData: any = null;
@@ -184,6 +273,7 @@ export async function getChatResponse(
     let radiusKm = 5;
     let newsDaysBack = 7;
 
+    const isHelpQuery = message.toLowerCase().trim() === 'help';
     const isCurrentLocationInfo = message.toLowerCase().includes('current location');
     const isThingsToDo = message.toLowerCase().includes('things i can do in') || message.toLowerCase().includes('things to do in') || message.toLowerCase().includes('things to do near');
     const isTripPlanning = message.toLowerCase().includes('plan a trip to');
@@ -197,16 +287,26 @@ export async function getChatResponse(
                                     message.toLowerCase().includes('somewhere') || 
                                     message.toLowerCase().includes('place where') ||
                                     message.toLowerCase().includes('what are some');
+    const isWeatherInfoQueryResult = isWeatherInfoQuery(message);
+    const isAppFeatureQuery = message.toLowerCase().includes('map layers') || 
+                             message.toLowerCase().includes('place a marker') || 
+                             message.toLowerCase().includes('clear the map') || 
+                             message.toLowerCase().includes('center on current location') || 
+                             message.toLowerCase().includes('discover nearby');
     const isUnsupportedQuery = message.toLowerCase().includes('what happened') || 
                               message.toLowerCase().includes('events coming up') || 
                               message.toLowerCase().includes('restaurants') || 
                               !isThingsToDo && !isTripPlanning && !isTellMeAbout && !isNewsUpdates && 
                               !isAirQualityQuery && !isForecastQuery && !isClothingQuery && 
-                              !isWeatherPreferenceQuery && 
-                              !message.toLowerCase().includes('remind me');
+                              !isWeatherPreferenceQuery && !isWeatherInfoQueryResult && 
+                              !isAppFeatureQuery && !message.toLowerCase().includes('remind me') && !isHelpQuery;
     const isGreeting = /^(hello|hi|hey|good (morning|afternoon|evening|night))\b/.test(message.toLowerCase());
     const isHowAreYou = /\b(how are you|how's it going|how have you been)\b/.test(message.toLowerCase());
     const isThanks = /\b(thank you|thanks|appreciate it)\b/.test(message.toLowerCase());
+
+    if (isHelpQuery) {
+      return { content: getHelpGuide(), data: null };
+    }
 
     if (isGreeting) {
       return { content: "Hey there! Hope you're having a great day. How can I help you?", data: null };
@@ -218,7 +318,7 @@ export async function getChatResponse(
 
     if (isUnsupportedQuery && !isTempMarkerQuery && !isCurrentLocationInfo) {
       return {
-        content: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, and activities. What else can I assist with?",
+        content: "Sorry, I can’t answer that! I’m here to help with travel plans, weather, air quality, news, activities, weather terms, and app features. What else can I assist with?",
         data: null,
       };
     }
@@ -270,8 +370,9 @@ export async function getChatResponse(
 
     if (finalCoords) {
       if (isWeatherPreferenceQuery) {
+        finalCoords = currentLocationCoords;
         const spiralPoints = await getSpiralWeatherLocations(
-          { lat: finalCoords[1], lng: finalCoords[0] },
+          { lat: currentLocationCoords![1], lng: currentLocationCoords![0] },
           message
         );
 
@@ -288,12 +389,12 @@ export async function getChatResponse(
         promptWithCoords += `\nSpiral Weather Data (top 5 locations within 200km):\n${JSON.stringify(spiralPois)}\n` +
           `Provide a friendly response listing these locations with their weather details, matching the user's preference: "${message}".`;
 
-        const response = await chat.sendMessage(promptWithCoords);
+        const response = await sendChatMessage(promptWithCoords, history, tempMarkerCoords, currentLocationCoords);
         return {
-          content: response.response.text().trim(),
+          content: response.content,
           data: {
             pois: spiralPois,
-            center: { lat: finalCoords[1], lng: finalCoords[0] },
+            center: { lat: finalCoords![1], lng: finalCoords![0] },
             radiusKm: 200,
             weatherData: weatherCards.length > 0 ? weatherCards : undefined,
           },
@@ -354,8 +455,8 @@ export async function getChatResponse(
       }
     }
 
-    const result = await chat.sendMessage(promptWithCoords);
-    let response = result.response.text().trim();
+    const result = await sendChatMessage(promptWithCoords, history, tempMarkerCoords, currentLocationCoords);
+    let response = result.content;
 
     let parsedResponse: any = { content: response, data: null };
     if (isTripPlanning) {

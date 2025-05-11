@@ -28,10 +28,9 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <div>Under maintenance</div>
-        {/* {children}
+        {children}
         <Analytics />
-        <SpeedInsights /> */}
+        <SpeedInsights />
       </body>
     </html>
   );

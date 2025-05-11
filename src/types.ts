@@ -100,9 +100,9 @@ export interface POI {
   id: string | number;
   lat: number;
   lng: number;
-  name?: string; // Optional, as it might come from tags.name or chat response
-  category?: string; // Derived from tags or chat response
-  priority?: number; // For spiral markers
+  name?: string;
+  category?: string;
+  priority?: number;
   tags?: {
     name?: string;
     amenity?: string;

@@ -63,4 +63,4 @@ async function getLocationNews(location: string, pageSize: number = 10, daysBack
   }
 }
 
-export { getLocationNews }
+export { getLocationNews };

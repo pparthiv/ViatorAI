@@ -1,12 +1,10 @@
-const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
-
 export async function getWeatherData(lat: number, lon: number): Promise<any | null> {
-  if (!API_KEY) return null;
-
-  const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=en`;
-  // console.log('Fetching weather data from:', url);
+  const url = `/api/weather?lat=${lat}&lon=${lon}&type=weather`;
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Weather request failed with status ${response.status}`);
+    }
     const data = await response.json();
     if (data.cod === 200) return data;
     return null;
@@ -17,12 +15,12 @@ export async function getWeatherData(lat: number, lon: number): Promise<any | nu
 }
 
 export async function getWeatherForecast(lat: number, lon: number): Promise<any | null> {
-  if (!API_KEY) return null;
-
-  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=en`;
-  // console.log('Fetching weather forecast from:', url);
+  const url = `/api/weather?lat=${lat}&lon=${lon}&type=forecast`;
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Forecast request failed with status ${response.status}`);
+    }
     const data = await response.json();
     if (data.cod === '200') return data;
     return null;
@@ -33,12 +31,12 @@ export async function getWeatherForecast(lat: number, lon: number): Promise<any 
 }
 
 export async function getCurrentAirPollution(lat: number, lon: number): Promise<any | null> {
-  if (!API_KEY) return null;
-
-  const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
-  // console.log('Fetching current air pollution from:', url);
+  const url = `/api/weather?lat=${lat}&lon=${lon}&type=air_pollution`;
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Air pollution request failed with status ${response.status}`);
+    }
     const data = await response.json();
     if (data.list && data.list.length > 0) return data;
     return null;
@@ -49,14 +47,14 @@ export async function getCurrentAirPollution(lat: number, lon: number): Promise<
 }
 
 export async function getForecastAirPollution(lat: number, lon: number): Promise<any[] | null> {
-  if (!API_KEY) return null;
-
-  const url = `https://api.openweathermap.org/data/2.5/air_pollution/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&lang=en`;
-  // console.log('Fetching forecast air pollution from:', url);
+  const url = `/api/weather?lat=${lat}&lon=${lon}&type=air_pollution_forecast`;
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Air pollution forecast request failed with status ${response.status}`);
+    }
     const data = await response.json();
-    if (data.list && data.list.length > 0) return data.list;
+    if (data && data.length > 0) return data;
     return null;
   } catch (error) {
     console.error('Error fetching forecast air pollution:', error);

@@ -260,31 +260,38 @@ export default function MapSection({
   const [poiBounds, setPoiBounds] = useState<L.LatLngBounds | null>(null);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    const updateLocation = (newLocation: Location) => {
+      setUserLocation(newLocation);
+      onCurrentLocationChange?.(newLocation);
+      if (mapRef.current) {
+        mapRef.current.setView([newLocation.lat, newLocation.lng], 14);
+      }
+    };
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const newLocation = { lat: latitude, lng: longitude };
-          setUserLocation(newLocation);
-          onCurrentLocationChange?.(newLocation);
-          if (mapRef.current) mapRef.current.setView([newLocation.lat, newLocation.lng], 14);
-        },
-        (error) => {
-          setUserLocation(location);
-          onCurrentLocationChange?.(location);
-          if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-    } else {
-      setUserLocation(location);
-      onCurrentLocationChange?.(location);
-      if (mapRef.current) mapRef.current.setView([location.lat, location.lng], 14);
+    // Initial location setup
+    if (!initialized.current) {
+      initialized.current = true;
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            updateLocation({ lat: latitude, lng: longitude });
+          },
+          () => {
+            updateLocation(location); // Fallback to prop location
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      } else {
+        updateLocation(location);
+      }
     }
-  }, [location, onCurrentLocationChange]);
+
+    // Update userLocation when currentLocation prop changes
+    if (currentLocation && (currentLocation.lat !== userLocation?.lat || currentLocation.lng !== userLocation?.lng)) {
+      updateLocation(currentLocation);
+    }
+  }, [location, currentLocation, onCurrentLocationChange, userLocation]);
 
   useEffect(() => {
     if (pois.length > 0 && mapRef.current) {
@@ -413,11 +420,10 @@ export default function MapSection({
         )}
         {pois.map((poi) => {
           const isWeatherSuggestion = poi.category === 'Weather Suggestion';
-          // Ensure latestSpiralWeatherData is an array or fallback to empty array
           const latestSpiralWeatherData = (window as any).latestSpiralWeatherData || [];
           const weatherData = Array.isArray(latestSpiralWeatherData)
             ? latestSpiralWeatherData.find((wd: WeatherData) => 
-                wd.city.name === poi.name // Match using poi.name only
+                wd.city.name === poi.name
               ) || {}
             : latestSpiralWeatherData;
 
@@ -437,25 +443,29 @@ export default function MapSection({
                   closeButton={false}
                   autoClose={false}
                   closeOnClick={false}
-                  className="weather-popup"
+                  className={isWeatherSuggestion ? 'weather-popup' : 'poi-popup'}
                   maxWidth={150}
                   maxHeight={200}
                 >
-                  {isWeatherSuggestion && weatherData && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          const popupElement = (e.target as HTMLElement).closest('.leaflet-popup');
-                          if (popupElement) popupElement.remove();
-                        }}
-                        className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-75 transition-all z-10"
-                      >
-                        <X size={14} />
-                      </button>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        const popupElement = (e.target as HTMLElement).closest('.leaflet-popup');
+                        if (popupElement) popupElement.remove();
+                      }}
+                      className="absolute top-1 right-1 text-white bg-black bg-opacity-50 rounded-full w-5 h-5 flex items-center justify-center hover:bg-opacity-75 transition-all z-10"
+                    >
+                      <X size={12} />
+                    </button>
+                    {isWeatherSuggestion && weatherData ? (
                       <div dangerouslySetInnerHTML={{ __html: widgetHtml || '' }} />
-                    </div>
-                  )}
-                  {!isWeatherSuggestion && `${poi.name || 'Unnamed POI'} (${poi.category || 'Unknown'})`}
+                    ) : (
+                      <div className="text-gray-800 text-sm px-2 py-2 space-y-1">
+                        <div className="font-bold truncate">{poi.name || 'Unnamed POI'}</div>
+                        <div className="text-gray-600 capitalize">{poi.category || 'Unknown'}</div>
+                      </div>
+                    )}
+                  </div>
                 </Popup>
               </Marker>
               {isWeatherSuggestion && (
